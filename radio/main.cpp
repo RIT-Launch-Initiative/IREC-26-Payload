@@ -39,12 +39,12 @@ void print_cmd(const struct CommandAndData *cmd) {
     printf("\n");
     break;
   case Command_WriteArmSequence:
-    printf("Read Arm Sequence: path = %d, index = %d, delay = %d, take_pic = %s", cmd->write_arm_sequence.path_id, cmd->write_arm_sequence.index, cmd->write_arm_sequence.delay_before_next, cmd->write_arm_sequence.take_picture ? "true" : "false");
+    printf("Read Arm Sequence: path = %d, index = %d, delay = %d, take_pic = %s, ", cmd->write_arm_sequence.path_id, cmd->write_arm_sequence.index, cmd->write_arm_sequence.delay_before_next, cmd->write_arm_sequence.take_picture ? "true" : "false");
     print_arm_target(&cmd->write_arm_sequence.target);
     printf("\n");
     break;
   case Command_ReadArmSequence:
-    printf("Read Arm Sequence: path = %d, index = %d", cmd->read_arm_sequence.path_id, cmd->read_arm_sequence.index);
+    printf("Read Arm Sequence: path = %d, index = %d, ", cmd->read_arm_sequence.path_id, cmd->read_arm_sequence.index);
     break;
   case Command_ExecuteArmSequence:
     printf("Execute Arm Sequence #%d\n", cmd->execute_arm_sequence.path_id);
