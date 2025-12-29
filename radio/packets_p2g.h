@@ -1,3 +1,4 @@
+#pragma once
 #include "common.h"
 #include "lora.h"
 #include <stdbool.h>
@@ -18,6 +19,15 @@ struct P2GLinkHeader {
                                             //  needs_ack set
 };
 
+struct ShellExecReturnData {
+  uint16_t stdout_len;
+  uint16_t stderr_len;
+  uint16_t stdout_compressed_len;
+  uint16_t stderr_compressed_len;
+  int return_code;
+};
+
+
 struct ShellReadOutputData {
   uint16_t index;   // maybe MSB means compress it?
   uint8_t buf[128]; // amount filled depends on std(out/err) and which chunk you
@@ -32,8 +42,18 @@ enum FlightState {
   FlightState_Flight = 3,
   FlightState_LandedFlipping = 4,
   FlightState_LandedAutomatic = 5,
-  FlightState_LandedManualIdle = 6,
-  FlightState_LandedManualMoving = 7,
+  FlightState_LandedManual = 6,
+};
+
+enum StatusBit{
+  LastArmMoveStalled,
+  LastServoMoveStalled,
+  ArmMoving,
+  ServoMoving,
+  InIdlePosition,
+  PiOverTemp,
+  RadioOverTemp,
+  LowBattery, // ? could be calculated on GS
 };
 
 struct GeneralStats {

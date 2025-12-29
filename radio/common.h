@@ -1,4 +1,4 @@
-#include "lora.h"
+#pragma once
 #include <stdbool.h>
 #include <stdint.h>
 #define MAX_PACKETS_BEFORE_RESPONSE 31
@@ -10,7 +10,7 @@ struct v3int8 {
 };
 
 struct BatteryTelemetry {
-  int16_t voltage; // mV
+  int16_t voltage;  // mV
   uint16_t current; // mA
 };
 
@@ -46,3 +46,36 @@ enum TelemetryType {
   TelemetryType_Power, // Battery Voltage, BatteryCurrent, Enabled Regulators
 };
 
+const char *telemetry_type_to_str(enum TelemetryType typ) {
+  switch (typ) {
+  case TelemetryType_General:
+    return "General";
+  case TelemetryType_GeneralLong:
+    return "GeneralLong";
+  case TelemetryType_Actuators:
+    return "Actuators";
+  case TelemetryType_GNSS:
+    return "GNSS";
+  case TelemetryType_System:
+    return "System";
+  case TelemetryType_Orientations:
+    return "Orientations";
+  case TelemetryType_Temps:
+    return "Temp";
+  case TelemetryType_Power:
+    return "Power";
+  default:
+    return "Unknown";
+  }
+}
+
+enum UnpackResult {
+  UnpackResult_TooShort,
+  UnpackResult_TooLong,
+  UnpackResult_UnknownCommand,
+  UnpackResult_NoCommand,
+
+  UnpackResult_AllGood,
+  UnpackResult_Unimplemented,
+
+};
