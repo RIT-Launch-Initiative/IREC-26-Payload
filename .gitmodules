@@ -1,0 +1,3 @@
+[submodule "radio/vendor/fuzztest"]
+	path = radio/vendor/fuzztest
+	url = https://github.com/google/fuzztest.git
