@@ -1,0 +1,5 @@
+# operation, paramters
+# resize the entire image by this amount
+scale 0.9
+# take a 512,512 selection at this location
+crop 10, 100
