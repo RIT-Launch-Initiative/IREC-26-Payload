@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuzztest_compatibility_mode.a CMakeFiles/fuzztest_compatibility_mode.dir/compatibility_mode.cc.o
+/usr/bin/ranlib libfuzztest_compatibility_mode.a

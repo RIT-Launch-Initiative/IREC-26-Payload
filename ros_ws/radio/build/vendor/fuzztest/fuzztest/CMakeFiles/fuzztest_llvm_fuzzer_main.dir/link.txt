@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuzztest_llvm_fuzzer_main.a CMakeFiles/fuzztest_llvm_fuzzer_main.dir/llvm_fuzzer_main.cc.o
+/usr/bin/ranlib libfuzztest_llvm_fuzzer_main.a

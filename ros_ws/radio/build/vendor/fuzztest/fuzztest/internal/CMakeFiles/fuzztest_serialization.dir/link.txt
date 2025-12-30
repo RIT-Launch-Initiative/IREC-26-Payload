@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuzztest_serialization.a CMakeFiles/fuzztest_serialization.dir/serialization.cc.o
+/usr/bin/ranlib libfuzztest_serialization.a

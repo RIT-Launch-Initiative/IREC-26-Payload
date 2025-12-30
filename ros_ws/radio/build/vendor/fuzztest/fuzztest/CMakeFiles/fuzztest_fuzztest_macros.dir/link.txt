@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuzztest_fuzztest_macros.a CMakeFiles/fuzztest_fuzztest_macros.dir/fuzztest_macros.cc.o
+/usr/bin/ranlib libfuzztest_fuzztest_macros.a

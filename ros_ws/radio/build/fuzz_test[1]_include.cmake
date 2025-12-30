@@ -1,0 +1,5 @@
+if(EXISTS "/home/ubuntu/ros_ws/radio/build/fuzz_test[1]_tests.cmake")
+  include("/home/ubuntu/ros_ws/radio/build/fuzz_test[1]_tests.cmake")
+else()
+  add_test(fuzz_test_NOT_BUILT fuzz_test_NOT_BUILT)
+endif()

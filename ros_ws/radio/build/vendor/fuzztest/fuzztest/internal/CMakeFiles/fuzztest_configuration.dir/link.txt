@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuzztest_configuration.a CMakeFiles/fuzztest_configuration.dir/configuration.cc.o
+/usr/bin/ranlib libfuzztest_configuration.a

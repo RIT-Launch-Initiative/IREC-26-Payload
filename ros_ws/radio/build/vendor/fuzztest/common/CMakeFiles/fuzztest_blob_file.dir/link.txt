@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuzztest_blob_file.a CMakeFiles/fuzztest_blob_file.dir/blob_file.cc.o
+/usr/bin/ranlib libfuzztest_blob_file.a

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuzztest_logging.a CMakeFiles/fuzztest_logging.dir/logging.cc.o
+/usr/bin/ranlib libfuzztest_logging.a

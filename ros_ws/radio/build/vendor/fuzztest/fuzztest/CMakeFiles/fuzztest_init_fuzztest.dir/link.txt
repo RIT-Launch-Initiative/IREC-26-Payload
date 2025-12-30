@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuzztest_init_fuzztest.a CMakeFiles/fuzztest_init_fuzztest.dir/init_fuzztest.cc.o
+/usr/bin/ranlib libfuzztest_init_fuzztest.a

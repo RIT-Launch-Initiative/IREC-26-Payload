@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuzztest_crashing_input_filename.a CMakeFiles/fuzztest_crashing_input_filename.dir/crashing_input_filename.cc.o
+/usr/bin/ranlib libfuzztest_crashing_input_filename.a

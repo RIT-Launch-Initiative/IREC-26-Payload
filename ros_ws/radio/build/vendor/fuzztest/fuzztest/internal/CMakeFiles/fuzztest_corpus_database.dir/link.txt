@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuzztest_corpus_database.a CMakeFiles/fuzztest_corpus_database.dir/corpus_database.cc.o
+/usr/bin/ranlib libfuzztest_corpus_database.a

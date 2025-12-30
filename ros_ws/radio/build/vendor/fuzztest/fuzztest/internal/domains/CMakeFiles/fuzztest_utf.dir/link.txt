@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuzztest_utf.a CMakeFiles/fuzztest_utf.dir/rune.cc.o CMakeFiles/fuzztest_utf.dir/utf.cc.o
+/usr/bin/ranlib libfuzztest_utf.a

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuzztest_seed_seq.a CMakeFiles/fuzztest_seed_seq.dir/seed_seq.cc.o
+/usr/bin/ranlib libfuzztest_seed_seq.a

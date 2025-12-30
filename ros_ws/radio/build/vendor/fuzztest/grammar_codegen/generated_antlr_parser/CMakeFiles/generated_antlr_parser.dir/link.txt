@@ -1,0 +1,2 @@
+/usr/bin/ar qc libgenerated_antlr_parser.a CMakeFiles/generated_antlr_parser.dir/ANTLRv4Lexer.cpp.o CMakeFiles/generated_antlr_parser.dir/ANTLRv4Parser.cpp.o CMakeFiles/generated_antlr_parser.dir/ANTLRv4ParserBaseListener.cpp.o CMakeFiles/generated_antlr_parser.dir/ANTLRv4ParserListener.cpp.o
+/usr/bin/ranlib libgenerated_antlr_parser.a

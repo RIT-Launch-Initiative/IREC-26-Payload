@@ -1,0 +1,2 @@
+/usr/bin/ar qc libcode_generation.a CMakeFiles/code_generation.dir/code_generation.cc.o CMakeFiles/backend.dir/backend.cc.o
+/usr/bin/ranlib libcode_generation.a

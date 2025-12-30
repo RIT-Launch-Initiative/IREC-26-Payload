@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuzztest_type_support.a CMakeFiles/fuzztest_type_support.dir/type_support.cc.o
+/usr/bin/ranlib libfuzztest_type_support.a

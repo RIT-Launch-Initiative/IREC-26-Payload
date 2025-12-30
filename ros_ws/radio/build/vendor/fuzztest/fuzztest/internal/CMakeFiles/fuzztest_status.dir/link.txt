@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuzztest_status.a CMakeFiles/fuzztest_status.dir/status.cc.o
+/usr/bin/ranlib libfuzztest_status.a

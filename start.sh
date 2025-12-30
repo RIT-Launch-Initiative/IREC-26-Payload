@@ -1,0 +1,1 @@
+docker run -it --mount type=bind,src=./ros_ws,dst=/home/ubuntu/ros_ws osrf/ros:kilted-desktop-full

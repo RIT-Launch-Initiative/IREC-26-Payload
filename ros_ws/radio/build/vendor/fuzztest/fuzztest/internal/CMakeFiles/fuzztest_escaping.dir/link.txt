@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuzztest_escaping.a CMakeFiles/fuzztest_escaping.dir/escaping.cc.o
+/usr/bin/ranlib libfuzztest_escaping.a

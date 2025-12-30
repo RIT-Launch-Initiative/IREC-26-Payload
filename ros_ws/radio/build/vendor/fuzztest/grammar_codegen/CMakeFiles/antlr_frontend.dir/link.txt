@@ -1,0 +1,2 @@
+/usr/bin/ar qc libantlr_frontend.a CMakeFiles/antlr_frontend.dir/antlr_frontend.cc.o
+/usr/bin/ranlib libantlr_frontend.a

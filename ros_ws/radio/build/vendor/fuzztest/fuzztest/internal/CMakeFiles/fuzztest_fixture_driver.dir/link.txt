@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuzztest_fixture_driver.a CMakeFiles/fuzztest_fixture_driver.dir/fixture_driver.cc.o
+/usr/bin/ranlib libfuzztest_fixture_driver.a

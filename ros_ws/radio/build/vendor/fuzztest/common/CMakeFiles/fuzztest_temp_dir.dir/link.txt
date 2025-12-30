@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuzztest_temp_dir.a CMakeFiles/fuzztest_temp_dir.dir/temp_dir.cc.o
+/usr/bin/ranlib libfuzztest_temp_dir.a

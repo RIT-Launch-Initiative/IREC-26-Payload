@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuzztest_sha1.a CMakeFiles/fuzztest_sha1.dir/sha1.cc.o
+/usr/bin/ranlib libfuzztest_sha1.a

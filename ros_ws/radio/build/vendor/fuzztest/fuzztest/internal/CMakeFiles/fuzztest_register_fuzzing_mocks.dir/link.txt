@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuzztest_register_fuzzing_mocks.a CMakeFiles/fuzztest_register_fuzzing_mocks.dir/register_fuzzing_mocks.cc.o
+/usr/bin/ranlib libfuzztest_register_fuzzing_mocks.a

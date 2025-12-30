@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuzztest_remote_file.a CMakeFiles/fuzztest_remote_file.dir/remote_file.cc.o CMakeFiles/fuzztest_remote_file.dir/remote_file_oss.cc.o
+/usr/bin/ranlib libfuzztest_remote_file.a

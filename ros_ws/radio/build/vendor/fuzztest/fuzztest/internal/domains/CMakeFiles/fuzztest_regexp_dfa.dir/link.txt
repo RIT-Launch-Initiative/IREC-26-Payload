@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuzztest_regexp_dfa.a CMakeFiles/fuzztest_regexp_dfa.dir/regexp_dfa.cc.o
+/usr/bin/ranlib libfuzztest_regexp_dfa.a

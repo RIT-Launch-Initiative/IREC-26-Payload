@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuzztest_fuzzing_bit_gen.a CMakeFiles/fuzztest_fuzzing_bit_gen.dir/fuzzing_bit_gen.cc.o
+/usr/bin/ranlib libfuzztest_fuzzing_bit_gen.a
