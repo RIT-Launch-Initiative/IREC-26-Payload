@@ -38,8 +38,7 @@ sudo rm -rf /var/lib/apt/lists/*
 # CMake 3.31.3
 # Check aarch64 or x86_64
 ARCH=$(uname -m)
-if [ "$ARCH" != "x86_64" ] && [ "$ARCH" !=
-    "aarch64" ]; then
+if [ "$ARCH" != "x86_64" ] && [ "$ARCH" != "aarch64" ]; then
     echo "Unsupported architecture: $ARCH"
     exit 1
 fi
