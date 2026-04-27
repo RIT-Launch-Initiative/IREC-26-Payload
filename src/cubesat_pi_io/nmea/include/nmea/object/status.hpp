@@ -7,8 +7,8 @@ namespace nmea {
 
 /// \brief Enumerates data status values.
 enum class status {
-  ACTIVE = 0, ///< Data is valid.
-  VOID = 1    ///< Data is invalid.
+    ACTIVE = 0, ///< Data is valid.
+    VOID = 1    ///< Data is invalid.
 };
 
 } // namespace nmea

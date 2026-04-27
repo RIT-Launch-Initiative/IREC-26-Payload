@@ -13,25 +13,25 @@
 namespace cubesat_pi_io {
 
 class PiIoNode : public rclcpp::Node {
-public:
-  explicit PiIoNode(const rclcpp::NodeOptions &options = rclcpp::NodeOptions());
+  public:
+    explicit PiIoNode(const rclcpp::NodeOptions &options = rclcpp::NodeOptions());
 
-private:
-  void onGpsTimer();
-  void onPowerTimer();
-  void onAccelTimer();
+  private:
+    void onGpsTimer();
+    void onPowerTimer();
+    void onAccelTimer();
 
-  GpsNmeaReader gps;
-  Ina260Driver ina;
-  Lis3dhDriver lis;
+    GpsNmeaReader gps;
+    Ina260Driver ina;
+    Lis3dhDriver lis;
 
-  rclcpp::Publisher<cubesat_msgs::msg::GpsSample>::SharedPtr gps_pub;
-  rclcpp::Publisher<cubesat_msgs::msg::PowerSample>::SharedPtr power_pub;
-  rclcpp::Publisher<cubesat_msgs::msg::AccelSample>::SharedPtr accel_pub;
+    rclcpp::Publisher<cubesat_msgs::msg::GpsSample>::SharedPtr gps_pub;
+    rclcpp::Publisher<cubesat_msgs::msg::PowerSample>::SharedPtr power_pub;
+    rclcpp::Publisher<cubesat_msgs::msg::AccelSample>::SharedPtr accel_pub;
 
-  rclcpp::TimerBase::SharedPtr gps_timer;
-  rclcpp::TimerBase::SharedPtr power_timer;
-  rclcpp::TimerBase::SharedPtr accel_timer;
+    rclcpp::TimerBase::SharedPtr gps_timer;
+    rclcpp::TimerBase::SharedPtr power_timer;
+    rclcpp::TimerBase::SharedPtr accel_timer;
 };
 
 } // namespace cubesat_pi_io
