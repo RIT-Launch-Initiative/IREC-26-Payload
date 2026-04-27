@@ -7,12 +7,13 @@ from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
-    pkg = get_package_share_directory("cubesat_bringup")
+    bringup_pkg = get_package_share_directory("cubesat_bringup")
+    pi_io_pkg = get_package_share_directory("cubesat_pi_io")
 
-    pi_zero_cfg = os.path.join(pkg, "config", "pi_zero.yaml")
-    stm_bridge_cfg = os.path.join(pkg, "config", "stm_bridge.yaml")
-    radio_cfg = os.path.join(pkg, "config", "radio.yaml")
-    vision_cfg = os.path.join(pkg, "config", "vision.yaml")
+    pi_io_cfg = os.path.join(pi_io_pkg, "config", "pi_io.yaml")
+    stm_bridge_cfg = os.path.join(bringup_pkg, "config", "stm_bridge.yaml")
+    radio_cfg = os.path.join(bringup_pkg, "config", "radio.yaml")
+    vision_cfg = os.path.join(bringup_pkg, "config", "vision.yaml")
 
     flight_dir_arg = DeclareLaunchArgument(
         "flight_dir",
@@ -22,21 +23,21 @@ def generate_launch_description():
 
     shared = {"flight_dir": flight_dir}
 
+    pi_io = Node(
+        package="cubesat_pi_io",
+        executable="pi_io_node",
+        name="pi_io_node",
+        parameters=[pi_io_cfg, shared],
+        respawn=True,
+        respawn_delay=2.0,
+        arguments=["--ros-args", "--log-level", "WARN"],
+    )
+
     # flight_manager = Node(
     #     package="cubesat_flight",
     #     executable="flight_manager_node",
     #     name="flight_manager_node",
-    #     parameters=[pi_zero_cfg, shared],
-    #     respawn=True,
-    #     respawn_delay=2.0,
-    #     arguments=["--ros-args", "--log-level", "WARN"],
-    # )
-
-    # pi_io = Node(
-    #     package="cubesat_pi_io",
-    #     executable="pi_io_node",
-    #     name="pi_io_node",
-    #     parameters=[pi_zero_cfg, shared],
+    #     parameters=[shared],
     #     respawn=True,
     #     respawn_delay=2.0,
     #     arguments=["--ros-args", "--log-level", "WARN"],
@@ -56,7 +57,7 @@ def generate_launch_description():
     #     package="cubesat_control",
     #     executable="control_node",
     #     name="control_node",
-    #     parameters=[pi_zero_cfg, shared],
+    #     parameters=[shared],
     #     respawn=True,
     #     respawn_delay=2.0,
     #     arguments=["--ros-args", "--log-level", "WARN"],
@@ -85,8 +86,8 @@ def generate_launch_description():
     return LaunchDescription(
         [
             flight_dir_arg,
+            pi_io,
             # flight_manager,
-            # pi_io,
             # stm_bridge,
             # control,
             # radio,
