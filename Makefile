@@ -5,7 +5,8 @@ LOCAL_GID := $(shell id -g)
 COMPOSE := LOCAL_UID=$(LOCAL_UID) LOCAL_GID=$(LOCAL_GID) docker compose
 
 all:
-	if [ -f "/.dockerenv" ] || [ -f "/opt/ros/humble/setup.bash" ]; then \
+	if [ -f /opt/ros/humble/setup.bash ]; then source /opt/ros/humble/setup.bash; fi && \
+ 	  if [ -f install/setup.bash ]; then source install/setup.bash; fi && \
 	  colcon build --symlink-install --event-handlers console_cohesion+ --cmake-args -G Ninja; \
 	else \
 	  $(COMPOSE) run --rm ros bash -lc \
@@ -36,7 +37,7 @@ build:
 	$(COMPOSE) build
 
 local_perms:
-	sudo chown -R $(id -u):$(id -g) .
+	sudo chown -R $(LOCAL_UID):$(LOCAL_GID) .
 
 # Must be ran in container / Pi
 compile_commands:
