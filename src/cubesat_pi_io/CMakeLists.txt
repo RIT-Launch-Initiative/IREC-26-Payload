@@ -27,6 +27,20 @@ target_include_directories(cubesat_pi_io_drivers PUBLIC
 )
 target_link_libraries(cubesat_pi_io_drivers PRIVATE nmea)
 
+add_executable(pi_io_node
+  src/main.cpp
+  src/pi_io_node.cpp
+)
+target_include_directories(pi_io_node PRIVATE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+)
+ament_target_dependencies(pi_io_node rclcpp cubesat_msgs)
+target_link_libraries(pi_io_node cubesat_pi_io_drivers)
+
+install(TARGETS pi_io_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 install(
   DIRECTORY config
   DESTINATION share/${PROJECT_NAME}
