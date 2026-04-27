@@ -42,7 +42,7 @@ def generate_launch_description():
     return LaunchDescription(
         [
             flight_dir_arg,
-            pi_io,
-            stm_bridge,
+            # pi_io,
+            # stm_bridge,
         ]
     )
