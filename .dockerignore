@@ -1,0 +1,15 @@
+.git
+.gitignore
+
+build
+install
+log
+.ros
+.vscode
+.idea
+__pycache__
+*.pyc
+
+Risk_Assessment.png
+rit-launch-logo-large_1.png
+*.log
