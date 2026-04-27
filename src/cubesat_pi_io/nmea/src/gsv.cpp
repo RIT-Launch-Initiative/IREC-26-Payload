@@ -19,6 +19,10 @@ gsv::gsv(const nmea::sentence &sentence) {
     nmea::parse_uint8(gsv::satellite_count, sentence, 2);
 
     // Use n_fields to determine how many satellites are in this message.
+    // Guard against underflow when field_count < 3.
+    if (sentence.field_count() < 3) {
+        return;
+    }
     uint8_t n_entries = (sentence.field_count() - 3) / 4;
 
     // Iterate over satellites in message.
