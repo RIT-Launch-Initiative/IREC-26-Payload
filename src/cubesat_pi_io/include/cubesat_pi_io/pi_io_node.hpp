@@ -21,17 +21,17 @@ private:
   void onPowerTimer();
   void onAccelTimer();
 
-  GpsNmeaReader gps_;
-  Ina260Driver ina_;
-  Lis3dhDriver lis_;
+  GpsNmeaReader gps;
+  Ina260Driver ina;
+  Lis3dhDriver lis;
 
-  rclcpp::Publisher<cubesat_msgs::msg::GpsSample>::SharedPtr gps_pub_;
-  rclcpp::Publisher<cubesat_msgs::msg::PowerSample>::SharedPtr power_pub_;
-  rclcpp::Publisher<cubesat_msgs::msg::AccelSample>::SharedPtr accel_pub_;
+  rclcpp::Publisher<cubesat_msgs::msg::GpsSample>::SharedPtr gps_pub;
+  rclcpp::Publisher<cubesat_msgs::msg::PowerSample>::SharedPtr power_pub;
+  rclcpp::Publisher<cubesat_msgs::msg::AccelSample>::SharedPtr accel_pub;
 
-  rclcpp::TimerBase::SharedPtr gps_timer_;
-  rclcpp::TimerBase::SharedPtr power_timer_;
-  rclcpp::TimerBase::SharedPtr accel_timer_;
+  rclcpp::TimerBase::SharedPtr gps_timer;
+  rclcpp::TimerBase::SharedPtr power_timer;
+  rclcpp::TimerBase::SharedPtr accel_timer;
 };
 
 } // namespace cubesat_pi_io

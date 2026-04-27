@@ -42,24 +42,24 @@ speed_t baudToSpeed(int baud) {
 GpsNmeaReader::~GpsNmeaReader() { close(); }
 
 void GpsNmeaReader::close() {
-  if (fd_ >= 0) {
-    ::close(fd_);
-    fd_ = -1;
+  if (fd >= 0) {
+    ::close(fd);
+    fd = -1;
   }
-  buffer_.clear();
+  buffer.clear();
 }
 
 bool GpsNmeaReader::open(const std::string &device, int baud_rate) {
   close();
 
-  int fd = ::open(device.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
+  fd = ::open(device.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
   if (fd < 0) {
     return false;
   }
 
   termios tty{};
   if (tcgetattr(fd, &tty) != 0) {
-    ::close(fd);
+    close();
     return false;
   }
 
@@ -78,33 +78,32 @@ bool GpsNmeaReader::open(const std::string &device, int baud_rate) {
 
   speed_t speed = baudToSpeed(baud_rate);
   if (speed == 0) {
-    ::close(fd);
+    close();
     return false;
   }
   cfsetispeed(&tty, speed);
   cfsetospeed(&tty, speed);
 
   if (tcsetattr(fd, TCSANOW, &tty) != 0) {
-    ::close(fd);
+    close();
     return false;
   }
 
   tcflush(fd, TCIOFLUSH);
 
-  fd_ = fd;
-  buffer_.reserve(kReadChunk);
+  buffer.reserve(kReadChunk);
   return true;
 }
 
 std::optional<GpsFix> GpsNmeaReader::readFix() {
-  if (fd_ < 0) {
+  if (fd < 0) {
     return std::nullopt;
   }
   drainAndParse();
-  if (!have_fix_) {
+  if (!have_fix) {
     return std::nullopt;
   }
-  return fix_;
+  return fix;
 }
 
 void GpsNmeaReader::drainAndParse() {
@@ -112,7 +111,7 @@ void GpsNmeaReader::drainAndParse() {
 
   while (true) {
     pollfd pfd{};
-    pfd.fd = fd_;
+    pfd.fd = fd;
     pfd.events = POLLIN;
 
     int ret = ::poll(&pfd, 1, 0);
@@ -120,30 +119,30 @@ void GpsNmeaReader::drainAndParse() {
       break;
     }
 
-    ssize_t n = ::read(fd_, chunk.data(), chunk.size());
+    ssize_t n = ::read(fd, chunk.data(), chunk.size());
     if (n <= 0) {
       break;
     }
 
-    buffer_.append(chunk.data(), static_cast<std::size_t>(n));
+    buffer.append(chunk.data(), static_cast<std::size_t>(n));
 
     while (true) {
-      auto start = buffer_.find('$');
+      auto start = buffer.find('$');
       if (start == std::string::npos) {
-        buffer_.clear();
+        buffer.clear();
         break;
       }
       if (start > 0) {
-        buffer_.erase(0, start);
+        buffer.erase(0, start);
       }
 
-      auto lf = buffer_.find('\n');
+      auto lf = buffer.find('\n');
       if (lf == std::string::npos) {
         break;
       }
 
-      std::string line = buffer_.substr(0, lf + 1);
-      buffer_.erase(0, lf + 1);
+      std::string line = buffer.substr(0, lf + 1);
+      buffer.erase(0, lf + 1);
 
       while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) {
         line.pop_back();
@@ -156,8 +155,8 @@ void GpsNmeaReader::drainAndParse() {
     }
 
     // Guard against runaway buffer growth (no newlines arriving).
-    if (buffer_.size() > kMaxLineLen * 4) {
-      buffer_.clear();
+    if (buffer.size() > kMaxLineLen * 4) {
+      buffer.clear();
     }
   }
 }
@@ -170,15 +169,15 @@ void GpsNmeaReader::handleLine(const std::string &line) {
 
   nmea::gga gga(sentence);
 
-  fix_.latitude = gga.latitude.exists() ? gga.latitude.get() : 0.0;
-  fix_.longitude = gga.longitude.exists() ? gga.longitude.get() : 0.0;
-  fix_.altitude_m = gga.altitude.exists() ? gga.altitude.get() : 0.0f;
-  fix_.fix_type = gga.fix.exists() ? static_cast<uint8_t>(gga.fix.get()) : 0;
-  fix_.satellites_visible =
+  fix.latitude = gga.latitude.exists() ? gga.latitude.get() : 0.0;
+  fix.longitude = gga.longitude.exists() ? gga.longitude.get() : 0.0;
+  fix.altitude_m = gga.altitude.exists() ? gga.altitude.get() : 0.0f;
+  fix.fix_type = gga.fix.exists() ? static_cast<uint8_t>(gga.fix.get()) : 0;
+  fix.satellites_visible =
       gga.satellite_count.exists() ? gga.satellite_count.get() : 0;
-  fix_.gps_time = gga.utc.exists() ? static_cast<uint32_t>(gga.utc.get()) : 0;
-  fix_.valid = fix_.fix_type != 0;
-  have_fix_ = true;
+  fix.gps_time = gga.utc.exists() ? static_cast<uint32_t>(gga.utc.get()) : 0;
+  fix.valid = fix.fix_type != 0;
+  have_fix = true;
 }
 
 } // namespace cubesat_pi_io

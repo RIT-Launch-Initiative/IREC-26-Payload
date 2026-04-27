@@ -72,27 +72,26 @@ int fsCode(uint8_t range_g) {
 Lis3dhDriver::~Lis3dhDriver() { close(); }
 
 void Lis3dhDriver::close() {
-  if (fd_ >= 0) {
-    ::close(fd_);
-    fd_ = -1;
+  if (fd >= 0) {
+    ::close(fd);
+    fd = -1;
   }
-  configured_ = false;
+  configured = false;
 }
 
 bool Lis3dhDriver::open(const std::string &device, uint8_t address) {
   close();
 
-  int fd = ::open(device.c_str(), O_RDWR | O_CLOEXEC);
+  fd = ::open(device.c_str(), O_RDWR | O_CLOEXEC);
   if (fd < 0) {
     return false;
   }
   if (ioctl(fd, I2C_SLAVE, address) < 0) {
-    ::close(fd);
+    close();
     return false;
   }
 
-  fd_ = fd;
-  addr_ = address;
+  addr = address;
 
   uint8_t who = 0;
   if (!readReg(REG_WHO_AM_I, who) || who != WHO_AM_I_VAL) {
@@ -103,7 +102,7 @@ bool Lis3dhDriver::open(const std::string &device, uint8_t address) {
 }
 
 bool Lis3dhDriver::configure(uint16_t sample_rate_hz, uint8_t range_g) {
-  if (fd_ < 0) {
+  if (fd < 0) {
     return false;
   }
   int odr = odrCode(sample_rate_hz);
@@ -122,13 +121,13 @@ bool Lis3dhDriver::configure(uint16_t sample_rate_hz, uint8_t range_g) {
   if (!writeReg(REG_CTRL4, ctrl4))
     return false;
 
-  mps2_per_lsb_ = mgPerLsb(range_g) * (G_MPS2 / 1000.0f);
-  configured_ = true;
+  mps2_per_lsb = mgPerLsb(range_g) * (G_MPS2 / 1000.0f);
+  configured = true;
   return true;
 }
 
 std::optional<Lis3dhReading> Lis3dhDriver::read() {
-  if (fd_ < 0 || !configured_) {
+  if (fd < 0 || !configured) {
     return std::nullopt;
   }
 
@@ -145,9 +144,9 @@ std::optional<Lis3dhReading> Lis3dhDriver::read() {
   };
 
   Lis3dhReading r{};
-  r.ax_mps2 = static_cast<float>(raw(0)) * mps2_per_lsb_;
-  r.ay_mps2 = static_cast<float>(raw(2)) * mps2_per_lsb_;
-  r.az_mps2 = static_cast<float>(raw(4)) * mps2_per_lsb_;
+  r.ax_mps2 = static_cast<float>(raw(0)) * mps2_per_lsb;
+  r.ay_mps2 = static_cast<float>(raw(2)) * mps2_per_lsb;
+  r.az_mps2 = static_cast<float>(raw(4)) * mps2_per_lsb;
   return r;
 }
 
@@ -155,7 +154,7 @@ bool Lis3dhDriver::writeReg(uint8_t reg, uint8_t val) {
   uint8_t tx[2] = {reg, val};
 
   i2c_msg msg{};
-  msg.addr = addr_;
+  msg.addr = addr;
   msg.flags = 0;
   msg.len = sizeof(tx);
   msg.buf = tx;
@@ -163,7 +162,7 @@ bool Lis3dhDriver::writeReg(uint8_t reg, uint8_t val) {
   i2c_rdwr_ioctl_data rdwr{};
   rdwr.msgs = &msg;
   rdwr.nmsgs = 1;
-  return ioctl(fd_, I2C_RDWR, &rdwr) >= 0;
+  return ioctl(fd, I2C_RDWR, &rdwr) >= 0;
 }
 
 bool Lis3dhDriver::readReg(uint8_t reg, uint8_t &out) {
@@ -174,12 +173,12 @@ bool Lis3dhDriver::readBlock(uint8_t reg, uint8_t *buf, size_t len) {
   uint8_t sub = static_cast<uint8_t>(reg | (len > 1 ? AUTO_INC : 0));
 
   i2c_msg msgs[2]{};
-  msgs[0].addr = addr_;
+  msgs[0].addr = addr;
   msgs[0].flags = 0;
   msgs[0].len = 1;
   msgs[0].buf = &sub;
 
-  msgs[1].addr = addr_;
+  msgs[1].addr = addr;
   msgs[1].flags = I2C_M_RD;
   msgs[1].len = static_cast<uint16_t>(len);
   msgs[1].buf = buf;
@@ -187,7 +186,7 @@ bool Lis3dhDriver::readBlock(uint8_t reg, uint8_t *buf, size_t len) {
   i2c_rdwr_ioctl_data rdwr{};
   rdwr.msgs = msgs;
   rdwr.nmsgs = 2;
-  return ioctl(fd_, I2C_RDWR, &rdwr) >= 0;
+  return ioctl(fd, I2C_RDWR, &rdwr) >= 0;
 }
 
 } // namespace cubesat_pi_io

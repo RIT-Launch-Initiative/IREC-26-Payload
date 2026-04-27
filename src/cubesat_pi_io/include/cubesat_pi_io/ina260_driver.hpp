@@ -22,7 +22,7 @@ public:
 
   bool open(const std::string &device, uint8_t address);
   void close();
-  bool isOpen() const { return fd_ >= 0; }
+  bool isOpen() const { return fd >= 0; }
 
   std::optional<PowerReading> read();
 
@@ -32,8 +32,8 @@ private:
   bool reset();
   bool writeDefaultConfig();
 
-  int fd_{-1};
-  uint8_t addr_{0};
+  int fd{-1};
+  uint8_t addr{0};
 
   // Register map
   static constexpr uint8_t REG_CONF = 0x00;

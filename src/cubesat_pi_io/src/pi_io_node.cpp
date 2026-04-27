@@ -41,29 +41,29 @@ PiIoNode::PiIoNode(const rclcpp::NodeOptions &options)
   const auto lis_range = declare_parameter<int>("lis3dh.range_g", 16);
   const auto lis_hz = declare_parameter<double>("lis3dh.poll_hz", 50.0);
 
-  gps_pub_ = create_publisher<cubesat_msgs::msg::GpsSample>("/pi/gps", 10);
-  power_pub_ =
+  gps_pub = create_publisher<cubesat_msgs::msg::GpsSample>("/pi/gps", 10);
+  power_pub =
       create_publisher<cubesat_msgs::msg::PowerSample>("/pi/power", 10);
-  accel_pub_ =
+  accel_pub =
       create_publisher<cubesat_msgs::msg::AccelSample>("/pi/lis3dh", 50);
 
-  gps_.open(gps_dev, gps_baud);
-  ina_.open(ina_dev, static_cast<uint8_t>(ina_addr));
-  if (lis_.open(lis_dev, static_cast<uint8_t>(lis_addr))) {
-    lis_.configure(static_cast<uint16_t>(lis_rate),
+  gps.open(gps_dev, gps_baud);
+  ina.open(ina_dev, static_cast<uint8_t>(ina_addr));
+  if (lis.open(lis_dev, static_cast<uint8_t>(lis_addr))) {
+    lis.configure(static_cast<uint16_t>(lis_rate),
                    static_cast<uint8_t>(lis_range));
   }
 
-  gps_timer_ =
+  gps_timer =
       create_wall_timer(periodFromHz(gps_hz), [this] { onGpsTimer(); });
-  power_timer_ =
+  power_timer =
       create_wall_timer(periodFromHz(ina_hz), [this] { onPowerTimer(); });
-  accel_timer_ =
+  accel_timer =
       create_wall_timer(periodFromHz(lis_hz), [this] { onAccelTimer(); });
 }
 
 void PiIoNode::onGpsTimer() {
-  auto fix = gps_.readFix();
+  auto fix = gps.readFix();
   if (!fix) {
     return;
   }
@@ -74,11 +74,11 @@ void PiIoNode::onGpsTimer() {
   msg.altitude_m = fix->altitude_m;
   msg.fix_type = fix->fix_type;
   msg.satellites = fix->satellites_visible;
-  gps_pub_->publish(msg);
+  gps_pub->publish(msg);
 }
 
 void PiIoNode::onPowerTimer() {
-  auto p = ina_.read();
+  auto p = ina.read();
   if (!p) {
     return;
   }
@@ -87,11 +87,11 @@ void PiIoNode::onPowerTimer() {
   msg.bus_voltage_v = p->bus_voltage_v;
   msg.current_a = p->current_a;
   msg.power_w = p->power_w;
-  power_pub_->publish(msg);
+  power_pub->publish(msg);
 }
 
 void PiIoNode::onAccelTimer() {
-  auto a = lis_.read();
+  auto a = lis.read();
   if (!a) {
     return;
   }
@@ -100,7 +100,7 @@ void PiIoNode::onAccelTimer() {
   msg.ax = a->ax_mps2;
   msg.ay = a->ay_mps2;
   msg.az = a->az_mps2;
-  accel_pub_->publish(msg);
+  accel_pub->publish(msg);
 }
 
 } // namespace cubesat_pi_io

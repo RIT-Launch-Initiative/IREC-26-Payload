@@ -26,7 +26,7 @@ public:
 
   bool open(const std::string &device, int baud_rate);
   void close();
-  bool isOpen() const { return fd_ >= 0; }
+  bool isOpen() const { return fd >= 0; }
 
   // Drains pending UART bytes, parses any complete NMEA sentences, and
   // updates the cached fix. Returns the cached fix if at least one GGA
@@ -37,11 +37,11 @@ private:
   void drainAndParse();
   void handleLine(const std::string &line);
 
-  int fd_{-1};
-  std::string buffer_;
+  int fd{-1};
+  std::string buffer;
 
-  GpsFix fix_{};
-  bool have_fix_{false};
+  GpsFix fix{};
+  bool have_fix{false};
 
   static constexpr std::size_t kMaxLineLen = 512;
   static constexpr std::size_t kReadChunk = 4096;
