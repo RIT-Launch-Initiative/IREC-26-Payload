@@ -46,9 +46,10 @@ fi
 
 cd /tmp
 CMAKE_TAR="cmake-${CMAKE_VERSION}-Linux-${ARCH}.tar.gz"
+CMAKE_DIR="${CMAKE_TAR%.tar.gz}"
 wget "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/${CMAKE_TAR}"
 tar -xzvf "${CMAKE_TAR}"
-sudo cp -r "cmake-${CMAKE_VERSION}-linux-${ARCH}/"* /usr
+sudo cp -r "${CMAKE_DIR}/"* /usr
 cd -
 rm -rf /tmp/cmake-*
 
