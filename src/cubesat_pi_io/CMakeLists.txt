@@ -14,8 +14,16 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(cubesat_msgs REQUIRED)
 
-# Driver sources and node sources are added in later steps.
-# Keep this scaffold buildable until then.
+add_subdirectory(nmea)
+
+add_library(cubesat_pi_io_drivers STATIC
+  src/gps_nmea_reader.cpp
+)
+target_include_directories(cubesat_pi_io_drivers PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(cubesat_pi_io_drivers PRIVATE nmea)
 
 install(
   DIRECTORY config
