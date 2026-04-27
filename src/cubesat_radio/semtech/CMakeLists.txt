@@ -30,13 +30,15 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-cmake_minimum_required(VERSION 3.25)
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    cmake_minimum_required(VERSION 3.25)
 
-project(
-    sx126x_driver
-    DESCRIPTION "SX126x driver library"
-    LANGUAGES C
-)
+    project(
+        sx126x_driver
+        DESCRIPTION "SX126x driver library"
+        LANGUAGES C
+    )
+endif()
 
 add_subdirectory(src)
 
