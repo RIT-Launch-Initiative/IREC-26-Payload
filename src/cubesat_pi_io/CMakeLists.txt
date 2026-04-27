@@ -18,6 +18,7 @@ add_subdirectory(nmea)
 
 add_library(cubesat_pi_io_drivers STATIC
   src/gps_nmea_reader.cpp
+  src/ina260_driver.cpp
 )
 target_include_directories(cubesat_pi_io_drivers PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
