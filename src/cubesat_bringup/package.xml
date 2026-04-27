@@ -3,8 +3,8 @@
 <package format="3">
   <name>cubesat_bringup</name>
   <version>0.1.0</version>
-  <description>Launch and configuration bringup for the CubeSat robotic arm flight system.</description>
-  <maintainer email="aarchan108@gmail.com">Aaron Chan</maintainer>
+  <description>Launch and configuration bringup for the CubeSat robotic arm.</description>
+  <maintainer email="amc9897@rit.edu">Aaron Chan</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
