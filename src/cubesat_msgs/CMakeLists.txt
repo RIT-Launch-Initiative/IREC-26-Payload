@@ -10,7 +10,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/FlightState.msg"
   "msg/PowerSample.msg"
   "msg/GpsSample.msg"
-  "msg/ImuSample.msg"
+  "msg/AccelSample.msg"
   "msg/BoostEvent.msg"
   "msg/ArmStatus.msg"
   "msg/RadioPacket.msg"
