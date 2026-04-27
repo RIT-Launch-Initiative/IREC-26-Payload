@@ -25,8 +25,8 @@ public:
   void close();
   bool isOpen() const { return fd_ >= 0; }
 
-  // sample_rate_hz: one of {1, 10, 25, 50, 100, 200, 400}. Other values rejected.
-  // range_g: one of {2, 4, 8, 16}.
+  // sample_rate_hz: one of {1, 10, 25, 50, 100, 200, 400}. Other values
+  // rejected. range_g: one of {2, 4, 8, 16}.
   bool configure(uint16_t sample_rate_hz, uint8_t range_g);
 
   std::optional<Lis3dhReading> read();
@@ -45,9 +45,9 @@ private:
 
   // Register map (subset)
   static constexpr uint8_t REG_WHO_AM_I = 0x0F;
-  static constexpr uint8_t REG_CTRL1    = 0x20;
-  static constexpr uint8_t REG_CTRL4    = 0x23;
-  static constexpr uint8_t REG_OUT_X_L  = 0x28;
+  static constexpr uint8_t REG_CTRL1 = 0x20;
+  static constexpr uint8_t REG_CTRL4 = 0x23;
+  static constexpr uint8_t REG_OUT_X_L = 0x28;
 
   static constexpr uint8_t WHO_AM_I_VAL = 0x33;
 
@@ -57,4 +57,4 @@ private:
   static constexpr float G_MPS2 = 9.80665f;
 };
 
-}  // namespace cubesat_pi_io
+} // namespace cubesat_pi_io

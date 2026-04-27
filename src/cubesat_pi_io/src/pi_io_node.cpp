@@ -13,43 +13,53 @@ std::chrono::nanoseconds periodFromHz(double hz) {
   return std::chrono::nanoseconds(static_cast<int64_t>(1e9 / hz));
 }
 
-}  // namespace
+} // namespace
 
 PiIoNode::PiIoNode(const rclcpp::NodeOptions &options)
     : rclcpp::Node("pi_io_node", options) {
-  // Shared (consumed by other nodes; declared here so launch can pass it freely).
+  // Shared (consumed by other nodes; declared here so launch can pass it
+  // freely).
   declare_parameter<std::string>("flight_dir", "");
 
   // GPS
-  const auto gps_dev   = declare_parameter<std::string>("gps.uart_device", "/dev/serial0");
-  const auto gps_baud  = declare_parameter<int>("gps.baud_rate", 9600);
-  const auto gps_hz    = declare_parameter<double>("gps.poll_hz", 5.0);
+  const auto gps_dev =
+      declare_parameter<std::string>("gps.uart_device", "/dev/serial0");
+  const auto gps_baud = declare_parameter<int>("gps.baud_rate", 9600);
+  const auto gps_hz = declare_parameter<double>("gps.poll_hz", 5.0);
 
   // INA260
-  const auto ina_dev   = declare_parameter<std::string>("ina260.i2c_device", "/dev/i2c-1");
-  const auto ina_addr  = declare_parameter<int>("ina260.address", 0x40);
-  const auto ina_hz    = declare_parameter<double>("ina260.poll_hz", 5.0);
+  const auto ina_dev =
+      declare_parameter<std::string>("ina260.i2c_device", "/dev/i2c-1");
+  const auto ina_addr = declare_parameter<int>("ina260.address", 0x40);
+  const auto ina_hz = declare_parameter<double>("ina260.poll_hz", 5.0);
 
   // LIS3DH
-  const auto lis_dev   = declare_parameter<std::string>("lis3dh.i2c_device", "/dev/i2c-1");
-  const auto lis_addr  = declare_parameter<int>("lis3dh.address", 0x18);
-  const auto lis_rate  = declare_parameter<int>("lis3dh.sample_rate_hz", 100);
+  const auto lis_dev =
+      declare_parameter<std::string>("lis3dh.i2c_device", "/dev/i2c-1");
+  const auto lis_addr = declare_parameter<int>("lis3dh.address", 0x18);
+  const auto lis_rate = declare_parameter<int>("lis3dh.sample_rate_hz", 100);
   const auto lis_range = declare_parameter<int>("lis3dh.range_g", 16);
-  const auto lis_hz    = declare_parameter<double>("lis3dh.poll_hz", 50.0);
+  const auto lis_hz = declare_parameter<double>("lis3dh.poll_hz", 50.0);
 
-  gps_pub_   = create_publisher<cubesat_msgs::msg::GpsSample>("/pi/gps", 10);
-  power_pub_ = create_publisher<cubesat_msgs::msg::PowerSample>("/pi/power", 10);
-  accel_pub_ = create_publisher<cubesat_msgs::msg::AccelSample>("/pi/lis3dh", 50);
+  gps_pub_ = create_publisher<cubesat_msgs::msg::GpsSample>("/pi/gps", 10);
+  power_pub_ =
+      create_publisher<cubesat_msgs::msg::PowerSample>("/pi/power", 10);
+  accel_pub_ =
+      create_publisher<cubesat_msgs::msg::AccelSample>("/pi/lis3dh", 50);
 
   gps_.open(gps_dev, gps_baud);
   ina_.open(ina_dev, static_cast<uint8_t>(ina_addr));
   if (lis_.open(lis_dev, static_cast<uint8_t>(lis_addr))) {
-    lis_.configure(static_cast<uint16_t>(lis_rate), static_cast<uint8_t>(lis_range));
+    lis_.configure(static_cast<uint16_t>(lis_rate),
+                   static_cast<uint8_t>(lis_range));
   }
 
-  gps_timer_   = create_wall_timer(periodFromHz(gps_hz),   [this] { onGpsTimer(); });
-  power_timer_ = create_wall_timer(periodFromHz(ina_hz),   [this] { onPowerTimer(); });
-  accel_timer_ = create_wall_timer(periodFromHz(lis_hz),   [this] { onAccelTimer(); });
+  gps_timer_ =
+      create_wall_timer(periodFromHz(gps_hz), [this] { onGpsTimer(); });
+  power_timer_ =
+      create_wall_timer(periodFromHz(ina_hz), [this] { onPowerTimer(); });
+  accel_timer_ =
+      create_wall_timer(periodFromHz(lis_hz), [this] { onAccelTimer(); });
 }
 
 void PiIoNode::onGpsTimer() {
@@ -93,4 +103,4 @@ void PiIoNode::onAccelTimer() {
   accel_pub_->publish(msg);
 }
 
-}  // namespace cubesat_pi_io
+} // namespace cubesat_pi_io

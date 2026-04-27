@@ -6,16 +6,15 @@
 namespace nmea {
 
 /// \brief Enumerates the FFA mode types.
-enum class mode
-{
-    AUTONOMOUS = 0,     ///< Autonomous mode.
-    DIFFERENTIAL = 1,   ///< Differential GPS (DGPS) mode.
-    ESTIMATED = 2,      ///< Estimated dead-reckoning mode.
-    MANUAL = 3,         ///< Manual input mode.
-    SIMULATED = 4,      ///< Simulation mode.
-    INVALID = 5         ///< Data is invalid.
+enum class mode {
+  AUTONOMOUS = 0,   ///< Autonomous mode.
+  DIFFERENTIAL = 1, ///< Differential GPS (DGPS) mode.
+  ESTIMATED = 2,    ///< Estimated dead-reckoning mode.
+  MANUAL = 3,       ///< Manual input mode.
+  SIMULATED = 4,    ///< Simulation mode.
+  INVALID = 5       ///< Data is invalid.
 };
 
-}
+} // namespace nmea
 
 #endif

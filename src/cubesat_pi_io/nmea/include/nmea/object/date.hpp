@@ -8,16 +8,15 @@
 namespace nmea {
 
 /// \brief Represents a date field.
-struct date
-{
-    /// \brief The day of the date.
-    uint8_t day;
-    /// \brief The month of the date.
-    uint8_t month;
-    /// \brief The year of the date.
-    uint8_t year;
+struct date {
+  /// \brief The day of the date.
+  uint8_t day;
+  /// \brief The month of the date.
+  uint8_t month;
+  /// \brief The year of the date.
+  uint8_t year;
 };
 
-}
+} // namespace nmea
 
 #endif

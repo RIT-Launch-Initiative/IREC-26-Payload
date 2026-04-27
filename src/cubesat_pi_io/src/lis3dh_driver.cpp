@@ -14,14 +14,22 @@ namespace {
 // Returns -1 if the rate is not supported.
 int odrCode(uint16_t hz) {
   switch (hz) {
-    case 1:   return 0x1;
-    case 10:  return 0x2;
-    case 25:  return 0x3;
-    case 50:  return 0x4;
-    case 100: return 0x5;
-    case 200: return 0x6;
-    case 400: return 0x7;
-    default:  return -1;
+  case 1:
+    return 0x1;
+  case 10:
+    return 0x2;
+  case 25:
+    return 0x3;
+  case 50:
+    return 0x4;
+  case 100:
+    return 0x5;
+  case 200:
+    return 0x6;
+  case 400:
+    return 0x7;
+  default:
+    return -1;
   }
 }
 
@@ -30,26 +38,36 @@ int odrCode(uint16_t hz) {
 // Source: LIS3DH datasheet, Table 4.
 float mgPerLsb(uint8_t range_g) {
   switch (range_g) {
-    case 2:  return 1.0f;
-    case 4:  return 2.0f;
-    case 8:  return 4.0f;
-    case 16: return 12.0f;  // datasheet quirk — not 8
-    default: return 0.0f;
+  case 2:
+    return 1.0f;
+  case 4:
+    return 2.0f;
+  case 8:
+    return 4.0f;
+  case 16:
+    return 12.0f; // datasheet quirk — not 8
+  default:
+    return 0.0f;
   }
 }
 
 // FS bits in CTRL_REG4[5:4]
 int fsCode(uint8_t range_g) {
   switch (range_g) {
-    case 2:  return 0x0;
-    case 4:  return 0x1;
-    case 8:  return 0x2;
-    case 16: return 0x3;
-    default: return -1;
+  case 2:
+    return 0x0;
+  case 4:
+    return 0x1;
+  case 8:
+    return 0x2;
+  case 16:
+    return 0x3;
+  default:
+    return -1;
   }
 }
 
-}  // namespace
+} // namespace
 
 Lis3dhDriver::~Lis3dhDriver() { close(); }
 
@@ -89,7 +107,7 @@ bool Lis3dhDriver::configure(uint16_t sample_rate_hz, uint8_t range_g) {
     return false;
   }
   int odr = odrCode(sample_rate_hz);
-  int fs  = fsCode(range_g);
+  int fs = fsCode(range_g);
   if (odr < 0 || fs < 0) {
     return false;
   }
@@ -99,8 +117,10 @@ bool Lis3dhDriver::configure(uint16_t sample_rate_hz, uint8_t range_g) {
   // CTRL_REG4: BDU=1 | BLE=0 | FS[5:4] | HR=1 | ST=00 | SIM=0
   const uint8_t ctrl4 = static_cast<uint8_t>(0x80 | (fs << 4) | 0x08);
 
-  if (!writeReg(REG_CTRL1, ctrl1)) return false;
-  if (!writeReg(REG_CTRL4, ctrl4)) return false;
+  if (!writeReg(REG_CTRL1, ctrl1))
+    return false;
+  if (!writeReg(REG_CTRL4, ctrl4))
+    return false;
 
   mps2_per_lsb_ = mgPerLsb(range_g) * (G_MPS2 / 1000.0f);
   configured_ = true;
@@ -170,4 +190,4 @@ bool Lis3dhDriver::readBlock(uint8_t reg, uint8_t *buf, size_t len) {
   return ioctl(fd_, I2C_RDWR, &rdwr) >= 0;
 }
 
-}  // namespace cubesat_pi_io
+} // namespace cubesat_pi_io

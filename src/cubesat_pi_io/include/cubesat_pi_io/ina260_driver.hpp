@@ -36,17 +36,17 @@ private:
   uint8_t addr_{0};
 
   // Register map
-  static constexpr uint8_t REG_CONF    = 0x00;
+  static constexpr uint8_t REG_CONF = 0x00;
   static constexpr uint8_t REG_CURRENT = 0x01;
-  static constexpr uint8_t REG_VBUS    = 0x02;
-  static constexpr uint8_t REG_POWER   = 0x03;
+  static constexpr uint8_t REG_VBUS = 0x02;
+  static constexpr uint8_t REG_POWER = 0x03;
 
   static constexpr uint16_t CONF_RESET = 1u << 15;
 
   // 1.25 mV/LSB, 1.25 mA/LSB, 10 mW/LSB per INA260 datasheet
   static constexpr float VOLTS_PER_LSB = 0.00125f;
-  static constexpr float AMPS_PER_LSB  = 0.00125f;
+  static constexpr float AMPS_PER_LSB = 0.00125f;
   static constexpr float WATTS_PER_LSB = 0.01f;
 };
 
-}  // namespace cubesat_pi_io
+} // namespace cubesat_pi_io

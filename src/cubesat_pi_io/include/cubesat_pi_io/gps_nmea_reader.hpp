@@ -47,4 +47,4 @@ private:
   static constexpr std::size_t kReadChunk = 4096;
 };
 
-}  // namespace cubesat_pi_io
+} // namespace cubesat_pi_io
