@@ -1,24 +1,27 @@
 #include "cubesat_radio/radio_node.hpp"
 
+#include <utility>
+
 namespace cubesat_radio {
 
 RadioNode::RadioNode(const rclcpp::NodeOptions& options) : rclcpp::Node("radio_node", options) {
     const auto hardware = loadHardwareConfig();
     const auto profile = loadProfile();
 
-    radio_ = std::make_unique<Sx1262Radio>(hardware);
+    rxPacketPub = create_publisher<cubesat_msgs::msg::RadioPacket>("radio/rx_packet", 10);
+    radio = std::make_unique<Sx1262Radio>(hardware);
 
-    if (!radio_->open()) {
+    if (!radio->open()) {
         RCLCPP_WARN(get_logger(), "Radio hardware open failed; verify SPI device, GPIO lines, and SX1262 wiring");
         return;
     }
 
-    if (!radio_->configure(profile)) {
+    if (!radio->configure(profile)) {
         RCLCPP_WARN(get_logger(), "Radio configure failed; verify LoRa profile and SX1262 initialization sequence");
         return;
     }
 
-    if (!radio_->setReceiveMode()) {
+    if (!radio->setReceiveMode()) {
         RCLCPP_WARN(get_logger(), "Radio RX mode enable failed after configuration");
         return;
     }
@@ -28,6 +31,16 @@ RadioNode::RadioNode(const rclcpp::NodeOptions& options) : rclcpp::Node("radio_n
                 profile.frequency_hz, profile.bandwidth_hz, profile.spreading_factor, profile.coding_rate,
                 profile.tx_power_dbm, hardware.spi_device.c_str(), hardware.reset_gpio, hardware.busy_gpio,
                 hardware.dio1_gpio);
+
+    running.store(true);
+    rxThread = std::thread(&RadioNode::receiveLoop, this);
+}
+
+RadioNode::~RadioNode() {
+    running.store(false);
+    if (rxThread.joinable()) {
+        rxThread.join();
+    }
 }
 
 RadioProfile RadioNode::loadProfile() {
@@ -56,6 +69,26 @@ RadioHardwareConfig RadioNode::loadHardwareConfig() {
     hardware.rx_enable_active_high =
         declare_parameter<bool>("rx_enable_active_high", hardware.rx_enable_active_high);
     return hardware;
+}
+
+void RadioNode::receiveLoop() {
+    while (rclcpp::ok() && running.load()) {
+        if (!radio->waitForInterrupt(std::chrono::milliseconds(200))) {
+            continue;
+        }
+
+        auto packet = radio->receive();
+        if (!packet) {
+            continue;
+        }
+
+        cubesat_msgs::msg::RadioPacket msg;
+        msg.stamp = now();
+        msg.data = std::move(packet->data);
+        msg.rssi = packet->rssi_dbm;
+        msg.snr = packet->snr_db;
+        rxPacketPub->publish(std::move(msg));
+    }
 }
 
 }  // namespace cubesat_radio

@@ -31,5 +31,6 @@ bool set_rf_switch_rx(Sx126xLinuxHalContext& context);
 bool set_rf_switch_tx(Sx126xLinuxHalContext& context);
 bool set_rf_switch_idle(Sx126xLinuxHalContext& context);
 bool wait_for_busy_clear(Sx126xLinuxHalContext& context, unsigned int timeout_ms);
+bool wait_for_dio1_rising(Sx126xLinuxHalContext& context, int timeout_ms);
 
 }  // namespace cubesat_radio

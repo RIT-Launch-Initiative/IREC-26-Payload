@@ -7,6 +7,7 @@
 
 #include <chrono>
 #include <cstring>
+#include <ctime>
 #include <thread>
 
 extern "C" {
@@ -55,6 +56,24 @@ bool request_input(gpiod_chip* chip, int line_number, const char* consumer, gpio
     return true;
 }
 
+bool request_rising_edge_input(gpiod_chip* chip, int line_number, const char* consumer, gpiod_line*& out_line) {
+    if (line_number < 0) {
+        out_line = nullptr;
+        return true;
+    }
+
+    out_line = gpiod_chip_get_line(chip, line_number);
+    if (out_line == nullptr) {
+        return false;
+    }
+    if (gpiod_line_request_rising_edge_events(out_line, consumer) != 0) {
+        gpiod_line_release(out_line);
+        out_line = nullptr;
+        return false;
+    }
+    return true;
+}
+
 bool set_optional_output(gpiod_line* line, bool active_high, bool enabled) {
     if (line == nullptr) {
         return true;
@@ -82,6 +101,25 @@ bool wait_for_busy_clear(Sx126xLinuxHalContext& context, unsigned int timeout_ms
         std::this_thread::sleep_for(std::chrono::microseconds(200));
     }
     return false;
+}
+
+bool wait_for_dio1_rising(Sx126xLinuxHalContext& context, int timeout_ms) {
+    if (context.dio1 == nullptr) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(timeout_ms));
+        return false;
+    }
+
+    timespec timeout{};
+    timeout.tv_sec = timeout_ms / 1000;
+    timeout.tv_nsec = static_cast<long>((timeout_ms % 1000) * 1000000);
+
+    const int ready = gpiod_line_event_wait(context.dio1, &timeout);
+    if (ready <= 0) {
+        return false;
+    }
+
+    gpiod_line_event event{};
+    return gpiod_line_event_read(context.dio1, &event) == 0 && event.event_type == GPIOD_LINE_EVENT_RISING_EDGE;
 }
 
 bool set_rf_switch_rx(Sx126xLinuxHalContext& context) {
@@ -129,7 +167,7 @@ bool open_linux_hal(Sx126xLinuxHalContext& context, const std::string& spi_devic
 
     if (!request_output(context.chip, reset_gpio, "sx1262_reset", 1, context.reset) ||
         !request_input(context.chip, busy_gpio, "sx1262_busy", context.busy) ||
-        !request_input(context.chip, dio1_gpio, "sx1262_dio1", context.dio1) ||
+        !request_rising_edge_input(context.chip, dio1_gpio, "sx1262_dio1", context.dio1) ||
         !request_output(context.chip, tx_enable_gpio, "sx1262_tx_enable", tx_enable_active_high ? 0 : 1,
                         context.tx_enable) ||
         !request_output(context.chip, rx_enable_gpio, "sx1262_rx_enable", rx_enable_active_high ? 0 : 1,

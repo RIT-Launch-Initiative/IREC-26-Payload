@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <optional>
 #include <vector>
 
@@ -22,10 +23,11 @@ public:
     std::optional<ReceivedPacket> receive();
     bool setReceiveMode();
     bool setSleepMode();
+    bool waitForInterrupt(std::chrono::milliseconds timeout);
 
 private:
     struct Impl;
-    Impl* impl_;
+    Impl* impl;
 };
 
 }  // namespace cubesat_radio
