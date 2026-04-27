@@ -42,8 +42,7 @@ PiIoNode::PiIoNode(const rclcpp::NodeOptions &options)
   const auto lis_hz = declare_parameter<double>("lis3dh.poll_hz", 50.0);
 
   gps_pub = create_publisher<cubesat_msgs::msg::GpsSample>("/pi/gps", 10);
-  power_pub =
-      create_publisher<cubesat_msgs::msg::PowerSample>("/pi/power", 10);
+  power_pub = create_publisher<cubesat_msgs::msg::PowerSample>("/pi/power", 10);
   accel_pub =
       create_publisher<cubesat_msgs::msg::AccelSample>("/pi/lis3dh", 50);
 
@@ -51,11 +50,10 @@ PiIoNode::PiIoNode(const rclcpp::NodeOptions &options)
   ina.open(ina_dev, static_cast<uint8_t>(ina_addr));
   if (lis.open(lis_dev, static_cast<uint8_t>(lis_addr))) {
     lis.configure(static_cast<uint16_t>(lis_rate),
-                   static_cast<uint8_t>(lis_range));
+                  static_cast<uint8_t>(lis_range));
   }
 
-  gps_timer =
-      create_wall_timer(periodFromHz(gps_hz), [this] { onGpsTimer(); });
+  gps_timer = create_wall_timer(periodFromHz(gps_hz), [this] { onGpsTimer(); });
   power_timer =
       create_wall_timer(periodFromHz(ina_hz), [this] { onPowerTimer(); });
   accel_timer =

@@ -3,8 +3,8 @@
 <package format="3">
   <name>cubesat_pi_io</name>
   <version>0.1.0</version>
-  <description>Raspberry Pi hardware I/O node for the CubeSat flight system: GPS (NMEA over UART), INA260 power monitor (I2C), LIS3DH accelerometer (I2C).</description>
-  <maintainer email="aarchan108@gmail.com">Aaron Chan</maintainer>
+  <description>Raspberry Pi hardware I/O node GPS, INA260, LIS3DH.</description>
+  <maintainer email="aamc9897@rit.edu">Aaron Chan</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
