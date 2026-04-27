@@ -6,10 +6,11 @@ ENV DEBIAN_FRONTEND=noninteractive \
     COLCON_WS=/workspace \
     CMAKE_VERSION=3.31.3
 
-RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     build-essential \
     wget \
+    ca-certificates \
     ninja-build \
     clang \
     clang-format \
@@ -32,16 +33,21 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     libgstreamer-plugins-base1.0-dev \
     libgpiod-dev \
     libopencv-dev \
+    ros-${ROS_DISTRO}-desktop \
     ros-${ROS_DISTRO}-vision-opencv \
     ros-${ROS_DISTRO}-gscam \
     && rm -rf /var/lib/apt/lists/*
 
-RUN wget https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.sh \
-    && chmod +x cmake-${CMAKE_VERSION}-linux-x86_64.sh \
-    && ./cmake-${CMAKE_VERSION}-linux-x86_64.sh --skip-license --prefix=/usr/local \
-    && rm cmake-${CMAKE_VERSION}-linux-x86_64.sh
-
-RUN rosdep init || true && rosdep update
+RUN arch="$(dpkg --print-architecture)" \
+    && case "${arch}" in \
+        amd64) cmake_arch="x86_64" ;; \
+        arm64) cmake_arch="aarch64" ;; \
+        *) echo "Unsupported architecture: ${arch}" >&2; exit 1 ;; \
+      esac \
+    && wget "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-${cmake_arch}.sh" \
+    && chmod +x "cmake-${CMAKE_VERSION}-linux-${cmake_arch}.sh" \
+    && "./cmake-${CMAKE_VERSION}-linux-${cmake_arch}.sh" --skip-license --prefix=/usr/local \
+    && rm "cmake-${CMAKE_VERSION}-linux-${cmake_arch}.sh"
 
 # Workspace skeleton
 RUN mkdir -p ${COLCON_WS}/src
@@ -55,4 +61,3 @@ RUN chmod +x /ros_entry.sh
 
 ENTRYPOINT ["/ros_entry.sh"]
 CMD ["bash"]
-

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -eo pipefail
 
 # Host UID/GID passed via docker compose env
 USER_ID="${LOCAL_UID:-1000}"
@@ -17,7 +17,16 @@ fi
 echo "${USER_NAME} ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/${USER_NAME}"
 chmod 0440 "/etc/sudoers.d/${USER_NAME}"
 
-source "/opt/ros/${ROS_DISTRO}/setup.bash"
+source_ros_env() {
+  set +u
+  source "/opt/ros/${ROS_DISTRO}/setup.bash"
 
-exec gosu "${USER_ID}:${GROUP_ID}" "$@"
+  if [ -f "/workspace/install/setup.bash" ]; then
+    source "/workspace/install/setup.bash"
+  fi
+  set -u
+}
 
+source_ros_env
+
+exec gosu "${USER_ID}:${GROUP_ID}" bash -lc 'set +u; source "/opt/ros/${ROS_DISTRO}/setup.bash"; if [ -f "/workspace/install/setup.bash" ]; then source "/workspace/install/setup.bash"; fi; set -u; exec "$@"' bash "$@"

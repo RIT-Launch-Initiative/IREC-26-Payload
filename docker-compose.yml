@@ -3,9 +3,9 @@ services:
     build: .
     image: dev:humble
     environment:
-      # Pass host uid/gid so created user matches and file perms work on host
-      - LOCAL_UID=${UID}
-      - LOCAL_GID=${GID}
+      # Pass host uid/gid so created user matches and file perms work on host.
+      - LOCAL_UID=${LOCAL_UID:-1000}
+      - LOCAL_GID=${LOCAL_GID:-1000}
       - LOCAL_USER=rosdev
       - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-42}
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
@@ -13,9 +13,6 @@ services:
       # X11
       - DISPLAY=${DISPLAY}
       - QT_X11_NO_MITSHM=1
-
-      # ROS discovery
-      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
 
     volumes:
       - ./:/workspace:rw
@@ -25,4 +22,3 @@ services:
     working_dir: /workspace
     tty: true
     stdin_open: true
-

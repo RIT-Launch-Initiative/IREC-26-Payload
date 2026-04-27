@@ -1,32 +1,39 @@
-.PHONY: up down exec logs build
+.PHONY: all clean up down exec logs build local_perms compile_commands colcon shell
+
+LOCAL_UID := $(shell id -u)
+LOCAL_GID := $(shell id -g)
+COMPOSE := LOCAL_UID=$(LOCAL_UID) LOCAL_GID=$(LOCAL_GID) docker compose
 
 all:
 	if [ -f "/.dockerenv" ] || [ -f "/opt/ros/humble/setup.bash" ]; then \
 	  colcon build --symlink-install --event-handlers console_cohesion+ --cmake-args -G Ninja; \
 	else \
-	  docker compose run --rm ros bash -lc \
+	  $(COMPOSE) run --rm ros bash -lc \
   		"cd /workspace && \
    		source /opt/ros/humble/setup.bash && \
-   		colcon build --symlink-install --event-handlers console_cohesion+" --cmake-args -G Ninja; \
+   		if [ -f /workspace/install/setup.bash ]; then source /workspace/install/setup.bash; fi && \
+   		colcon build --symlink-install --event-handlers console_cohesion+ --cmake-args -G Ninja"; \
 	fi
 
 clean:
 	rm -rf build/ install/ log/
 
 up:
-	LOCAL_UID=$$(id -u) LOCAL_GID=$$(id -g) docker compose up --build -d
+	$(COMPOSE) up --build -d
 
 down:
-	docker compose down
+	$(COMPOSE) down
 
 exec:
-	docker compose exec ros bash
+	$(COMPOSE) exec ros bash
+
+shell: exec
 
 logs:
-	docker compose logs -f ros
+	$(COMPOSE) logs -f ros
 
 build:
-	docker compose build
+	$(COMPOSE) build
 
 local_perms:
 	sudo chown -R $(id -u):$(id -g) .
