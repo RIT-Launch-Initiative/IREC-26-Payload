@@ -432,8 +432,9 @@ uint32_t sx126x_lr_fhss_get_next_freq_in_pll_steps( const sx126x_lr_fhss_params_
 #endif
 
     unsigned int grid_in_pll_steps = sx126x_lr_fhss_get_grid_in_pll_steps( params );
-    uint32_t     freq              = params->center_freq_in_pll_steps - freq_table * grid_in_pll_steps -
-                    ( params->device_offset + grid_offset ) * SX126X_LR_FHSS_GRID_INDEX_TO_PLL_STEPS;
+    uint32_t     freq              = ( uint32_t ) ( ( int64_t ) params->center_freq_in_pll_steps -
+                    ( int64_t ) freq_table * ( int64_t ) grid_in_pll_steps -
+                    ( int64_t ) ( params->device_offset + grid_offset ) * SX126X_LR_FHSS_GRID_INDEX_TO_PLL_STEPS );
 
 #ifndef HOP_AT_CENTER_FREQ
     // Perform frequency correction for every other sync header
