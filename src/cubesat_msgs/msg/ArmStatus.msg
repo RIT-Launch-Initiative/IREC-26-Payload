@@ -1,0 +1,10 @@
+builtin_interfaces/Time stamp
+float32 shoulder_angle_rad
+float32 elbow_angle_rad
+float32 wrist_angle_rad
+bool shoulder_ocp
+bool elbow_ocp
+bool wrist_ocp
+bool at_target
+float32 stm_temp_c
+string fault

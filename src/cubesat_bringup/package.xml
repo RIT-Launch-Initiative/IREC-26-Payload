@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>cubesat_bringup</name>
+  <version>0.1.0</version>
+  <description>Launch and configuration bringup for the CubeSat robotic arm.</description>
+  <maintainer email="amc9897@rit.edu">Aaron Chan</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>cubesat_flight</exec_depend>
+  <exec_depend>cubesat_pi_io</exec_depend>
+  <exec_depend>cubesat_stm_bridge</exec_depend>
+  <exec_depend>cubesat_control</exec_depend>
+  <exec_depend>cubesat_radio</exec_depend>
+  <exec_depend>cubesat_vision</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

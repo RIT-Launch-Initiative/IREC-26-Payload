@@ -1,0 +1,4 @@
+string base_path
+---
+string flight_path
+bool success
