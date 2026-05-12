@@ -8,10 +8,11 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    pkg = get_package_share_directory("cubesat_bringup")
+    bringup_pkg = get_package_share_directory("cubesat_bringup")
+    pi_io_pkg = get_package_share_directory("cubesat_pi_io")
 
-    pi_zero_cfg = os.path.join(pkg, "config", "pi_zero.yaml")
-    stm_bridge_cfg = os.path.join(pkg, "config", "stm_bridge.yaml")
+    pi_io_cfg = os.path.join(pi_io_pkg, "config", "pi_io.yaml")
+    stm_bridge_cfg = os.path.join(bringup_pkg, "config", "stm_bridge.yaml")
 
     flight_dir_arg = DeclareLaunchArgument(
         "flight_dir",
@@ -22,20 +23,20 @@ def generate_launch_description():
 
     shared = {"flight_dir": flight_dir}
 
+    pi_io = Node(
+        package="cubesat_pi_io",
+        executable="pi_io_node",
+        name="pi_io_node",
+        parameters=[pi_io_cfg, shared],
+        respawn=False,
+        arguments=["--ros-args", "--log-level", "DEBUG"],
+    )
+
     # flight_manager = Node(
     #     package="cubesat_flight",
     #     executable="flight_manager_node",
     #     name="flight_manager_node",
-    #     parameters=[pi_zero_cfg, shared],
-    #     respawn=False,
-    #     arguments=["--ros-args", "--log-level", "DEBUG"],
-    # )
-
-    # pi_io = Node(
-    #     package="cubesat_pi_io",
-    #     executable="pi_io_node",
-    #     name="pi_io_node",
-    #     parameters=[pi_zero_cfg, shared],
+    #     parameters=[shared],
     #     respawn=False,
     #     arguments=["--ros-args", "--log-level", "DEBUG"],
     # )
@@ -53,18 +54,18 @@ def generate_launch_description():
     #     package="cubesat_control",
     #     executable="control_node",
     #     name="control_node",
-    #     parameters=[pi_zero_cfg, shared],
+    #     parameters=[shared],
     #     respawn=False,
     #     arguments=["--ros-args", "--log-level", "DEBUG"],
     # )
 
-    # Radio and vision are excluded from bench
+    # Radio and vision are excluded from bench.
 
     return LaunchDescription(
         [
             flight_dir_arg,
+            pi_io,
             # flight_manager,
-            # pi_io,
             # stm_bridge,
             # control,
         ]

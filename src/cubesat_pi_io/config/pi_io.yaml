@@ -1,0 +1,19 @@
+pi_io_node:
+  ros__parameters:
+
+    gps:
+      uart_device: "/dev/serial0"
+      baud_rate: 9600
+      poll_hz: 5.0
+
+    ina260:
+      i2c_device: "/dev/i2c-1"
+      address: 0x40
+      poll_hz: 5.0
+
+    lis3dh:
+      i2c_device: "/dev/i2c-1"
+      address: 0x18
+      sample_rate_hz: 100
+      range_g: 16
+      poll_hz: 50.0
