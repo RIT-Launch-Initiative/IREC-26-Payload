@@ -6,7 +6,7 @@ radio_node:
     lora_bandwidth_hz: 125000
     lora_spreading_factor: 9
     lora_coding_rate: 5
-    lora_tx_power_dbm: 17
+    lora_tx_power_dbm: 28
     lora_preamble_length: 8
 
     # SPI transport
@@ -18,4 +18,4 @@ radio_node:
     # Fallback profile (used if primary fails to TX)
     fallback_spreading_factor: 12
     fallback_bandwidth_hz: 125000
-    fallback_tx_power_dbm: 20
+    fallback_tx_power_dbm: 28
