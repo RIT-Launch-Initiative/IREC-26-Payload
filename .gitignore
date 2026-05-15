@@ -1,6 +1,10 @@
 log/
 build/
 install/
+data/*
+!data/.gitkeep
+!data/flights/
+!data/flights/.gitkeep
 *.log
 
 # Prerequisites

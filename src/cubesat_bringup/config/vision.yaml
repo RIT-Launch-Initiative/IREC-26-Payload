@@ -1,0 +1,21 @@
+vision_node:
+  ros__parameters:
+
+    # Capture resolution
+    image_width: 1920
+    image_height: 720
+
+    # Default crop (pixels)
+    crop_x: 0
+    crop_y: 0
+    crop_width: 1640
+    crop_height: 720
+
+    # SSDV encoding
+    ssdv_quality: 6
+    ssdv_packet_bytes: 256
+    ssdv_callsign: "KD2YIE"
+
+    # Camera interface
+    camera_device: "/dev/video0"
+    camera_warmup_ms: 500
