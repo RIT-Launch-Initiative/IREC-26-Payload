@@ -42,8 +42,7 @@ RUN arch="$(dpkg --print-architecture)" \
 RUN mkdir -p ${COLCON_WS}/src
 WORKDIR ${COLCON_WS}
 
-RUN echo 'source /opt/ros/$ROS_DISTRO/setup.bash' >> /etc/bash.bashrc && \
-    echo 'if [ -f /workspace/install/setup.bash ]; then source /workspace/install/setup.bash; fi' >> /etc/bash.bashrc
+RUN echo 'source /opt/ros/$ROS_DISTRO/setup.bash' >> /etc/bash.bashrc
 
 COPY docker_entrypoint.sh /ros_entry.sh
 RUN chmod +x /ros_entry.sh

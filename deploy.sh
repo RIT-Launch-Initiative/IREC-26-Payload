@@ -172,15 +172,14 @@ build_deploy_workspace() {
         .
 
     docker run --rm \
+        --entrypoint bash \
         --platform "${docker_platform}" \
-        -e LOCAL_UID="$(id -u)" \
-        -e LOCAL_GID="$(id -g)" \
-        -e LOCAL_USER=rosdev \
+        --user "$(id -u):$(id -g)" \
         -e ROS_DISTRO="${ROS_DISTRO}" \
         -v "${PWD}:/workspace:rw" \
         -w /workspace \
         "${DOCKER_IMAGE}" \
-        bash -lc "
+        -lc "
             set -euo pipefail
             set +u
             source /opt/ros/${ROS_DISTRO}/setup.bash
