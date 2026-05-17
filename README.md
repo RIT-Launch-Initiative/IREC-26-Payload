@@ -37,10 +37,10 @@ To run a command on the Pi right after deploy:
 Important constraints:
 
 - This flow expects the Pi to be reachable as `ssh atlas` by default. Override with `PI_SSH_TARGET=<host>`.
-- The deploy build currently targets a 64-bit Pi userspace. `uname -m` on the Pi should report `aarch64`.
-- ROS 2 Humble and `rsync` must already be installed on the Pi.
+- The deploy build targets a 64-bit Pi userspace. `uname -m` on the Pi should report `aarch64`.
+- ROS 2 Humble and `rsync` must be installed on the Pi.
 - Local Docker needs an ARM-capable buildx builder. The default builder name in the script is `atlas-arm64`.
-- Deploy builds use `Dockerfile.deploy`, which is intentionally slimmer than the main dev image.
+- Deploy builds use `Dockerfile.deploy`, which is intentionally smaller than main dev image
 - If your machine has not been prepared for ARM64 Docker builds yet:
 
 ```bash
@@ -49,4 +49,4 @@ docker buildx create --name atlas-arm64 --driver docker-container --use
 docker buildx inspect --bootstrap
 ```
 
-- The normal local dev build still uses `--symlink-install`; that is intentional for development, but it is not suitable for deployment.
+- The normal local dev build still uses `--symlink-install` which is for development and not suitable for deployment.
