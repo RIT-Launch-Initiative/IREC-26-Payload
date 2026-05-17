@@ -8,6 +8,8 @@ PI_WORKSPACE="${PI_WORKSPACE:-/home/${PI_REMOTE_USER}/atlas_ws}"
 PI_ARCH="${PI_ARCH:-}"
 PI_RUN_CMD="${PI_RUN_CMD:-}"
 DOCKER_IMAGE="${DOCKER_IMAGE:-atlas-deploy:${ROS_DISTRO}}"
+DEPLOY_BUILDER="${DEPLOY_BUILDER:-atlas-arm64}"
+DEPLOY_DOCKERFILE="${DEPLOY_DOCKERFILE:-Dockerfile.deploy}"
 DEPLOY_BUILD_BASE="${DEPLOY_BUILD_BASE:-build_pi}"
 DEPLOY_INSTALL_BASE="${DEPLOY_INSTALL_BASE:-install_pi}"
 DEPLOY_LOG_BASE="${DEPLOY_LOG_BASE:-log_pi}"
@@ -23,6 +25,8 @@ Environment overrides:
   PI_ARCH           Override remote architecture detection (example: aarch64)
   PI_RUN_CMD        Remote command to run after sync
   ROS_DISTRO        ROS distro to source in the build and on the Pi (default: humble)
+  DEPLOY_BUILDER    docker buildx builder to use for ARM builds (default: atlas-arm64)
+  DEPLOY_DOCKERFILE Dockerfile used for deploy builds (default: Dockerfile.deploy)
 EOF
 }
 
@@ -102,6 +106,36 @@ EOF
     esac
 }
 
+ensure_builder_supports_platform() {
+    local docker_platform="$1"
+    local platforms
+
+    if ! platforms="$(docker buildx inspect "${DEPLOY_BUILDER}" --bootstrap 2>/dev/null | awk -F': ' '/Platforms:/ {print $2}')"; then
+        cat >&2 <<EOF
+Docker buildx builder '${DEPLOY_BUILDER}' is not available.
+
+Create and bootstrap one that supports ARM64 first:
+  docker run --privileged --rm tonistiigi/binfmt --install arm64
+  docker buildx create --name ${DEPLOY_BUILDER} --driver docker-container --use
+  docker buildx inspect --bootstrap
+EOF
+        exit 1
+    fi
+
+    if [[ "${platforms}" != *"${docker_platform}"* ]]; then
+        cat >&2 <<EOF
+Docker buildx builder '${DEPLOY_BUILDER}' does not support ${docker_platform}.
+
+Reported platforms: ${platforms}
+
+Install ARM64 emulation and re-bootstrap the builder:
+  docker run --privileged --rm tonistiigi/binfmt --install arm64
+  docker buildx inspect ${DEPLOY_BUILDER} --bootstrap
+EOF
+        exit 1
+    fi
+}
+
 verify_remote_runtime() {
     if ! ssh_remote "test -f /opt/ros/${ROS_DISTRO}/setup.bash"; then
         cat >&2 <<EOF
@@ -130,6 +164,8 @@ build_deploy_workspace() {
     rm -rf "${DEPLOY_BUILD_BASE}" "${DEPLOY_INSTALL_BASE}" "${DEPLOY_LOG_BASE}"
 
     docker buildx build \
+        --builder "${DEPLOY_BUILDER}" \
+        --file "${DEPLOY_DOCKERFILE}" \
         --load \
         --platform "${docker_platform}" \
         --tag "${DOCKER_IMAGE}" \
@@ -146,11 +182,12 @@ build_deploy_workspace() {
         "${DOCKER_IMAGE}" \
         bash -lc "
             set -euo pipefail
+            set +u
             source /opt/ros/${ROS_DISTRO}/setup.bash
-            colcon build \
+            set -u
+            colcon --log-base ${DEPLOY_LOG_BASE} build \
                 --build-base ${DEPLOY_BUILD_BASE} \
                 --install-base ${DEPLOY_INSTALL_BASE} \
-                --log-base ${DEPLOY_LOG_BASE} \
                 --merge-install \
                 --event-handlers console_cohesion+ \
                 --cmake-args -G Ninja
@@ -173,8 +210,10 @@ run_on_pi() {
     local remote_cmd
     remote_cmd="
         set -euo pipefail
+        set +u
         source /opt/ros/${ROS_DISTRO}/setup.bash
         source '${PI_WORKSPACE}/install/setup.bash'
+        set -u
         ${PI_RUN_CMD}
     "
 
@@ -189,8 +228,9 @@ echo "Remote architecture: ${REMOTE_ARCH}"
 echo "Docker platform: ${DOCKER_PLATFORM}"
 
 verify_remote_runtime
+ensure_builder_supports_platform "${DOCKER_PLATFORM}"
 build_deploy_workspace "${DOCKER_PLATFORM}"
 sync_to_pi
 run_on_pi
 
-echo "Payload sent to payload :)"
+echo "Deploy complete."
