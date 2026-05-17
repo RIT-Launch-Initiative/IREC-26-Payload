@@ -1,0 +1,17 @@
+radio_node:
+  ros__parameters:
+    frequency_hz: 915000000
+    bandwidth_hz: 125000
+    spreading_factor: 7
+    coding_rate: 5
+    tx_power_dbm: 14
+    spi_device: "/dev/spidev0.0"
+    spi_speed_hz: 1000000
+    gpio_chip_name: "gpiochip0"
+    reset_gpio: 0
+    busy_gpio: 0
+    dio1_gpio: 0
+    tx_enable_gpio: 0
+    rx_enable_gpio: 0
+    tx_enable_active_high: true
+    rx_enable_active_high: true

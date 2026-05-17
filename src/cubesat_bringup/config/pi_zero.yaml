@@ -1,0 +1,24 @@
+/**:
+  ros__parameters:
+    # TODO: Figure out real pins
+    # Sensor polling rates (Hz)
+    accel_poll_rate_hz: 100.0
+    gps_poll_rate_hz: 10.0
+    power_poll_rate_hz: 5.0
+
+    # GPIO mappings
+    gpio_camera_power_pin: 17
+    gpio_boost_detect_pin: 27
+    gpio_arm_enable_pin: 22
+    gpio_led_status_pin: 18
+
+    # INA260 power monitor
+    ina260_i2c_bus: 1
+    ina260_i2c_address: 0x40
+    ina260_avg_samples: 4
+
+    # LIS3DH accelerometer
+    lis3dh_spi_bus: 0
+    lis3dh_spi_device: 0
+    lis3dh_spi_freq_hz: 1000000
+    lis3dh_range_g: 16
