@@ -5,7 +5,7 @@ LOCAL_GID := $(shell id -g)
 COMPOSE := LOCAL_UID=$(LOCAL_UID) LOCAL_GID=$(LOCAL_GID) docker compose
 
 all:
-	if [ -f /opt/ros/humble/setup.bash ]; then source /opt/ros/humble/setup.bash; fi && \
+	if [ -f /opt/ros/humble/setup.bash ]; then source /opt/ros/humble/setup.bash && \
  	  if [ -f install/setup.bash ]; then source install/setup.bash; fi && \
 	  colcon build --symlink-install --event-handlers console_cohesion+ --cmake-args -G Ninja; \
 	else \
