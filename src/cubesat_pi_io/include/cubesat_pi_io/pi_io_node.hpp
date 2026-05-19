@@ -22,7 +22,7 @@ class PiIoNode : public rclcpp::Node {
     void onAccelTimer();
 
     GpsNmeaReader gps;
-    Ina260Driver ina;
+    Ina260Driver ina; 
     Lis3dhDriver lis;
 
     rclcpp::Publisher<cubesat_msgs::msg::GpsSample>::SharedPtr gps_pub;

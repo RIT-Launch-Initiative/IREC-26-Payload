@@ -81,7 +81,7 @@ std::optional<PowerReading> Ina260Driver::read() {
 
 bool Ina260Driver::writeReg16(uint8_t reg, uint16_t val) {
     uint16_t be = bswap16(val);
-    uint8_t tx[3] = {reg, static_cast<uint8_t>(be >> 8), static_cast<uint8_t>(be & 0xFF)};
+    uint8_t tx[3] = {reg, static_cast<uint8_t>(be & 0xff), static_cast<uint8_t>(be >> 8)};
 
     i2c_msg msg{};
     msg.addr = addr;
