@@ -1,6 +1,9 @@
 log/
 build/
 install/
+log_pi/
+build_pi/
+install_pi/
 data/*
 !data/.gitkeep
 !data/flights/

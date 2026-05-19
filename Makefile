@@ -1,4 +1,4 @@
-.PHONY: all clean up down exec logs build local_perms compile_commands colcon shell
+.PHONY: all clean up down exec logs build local_perms compile_commands colcon shell deploy
 
 LOCAL_UID := $(shell id -u)
 LOCAL_GID := $(shell id -g)
@@ -46,3 +46,6 @@ compile_commands:
 
 colcon:
 	colcon build --symlink-install
+
+deploy:
+	./deploy.sh
