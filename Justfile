@@ -44,3 +44,7 @@ colcon:
 # Blast build artifacts
 clean:
   rm -rf build/ install/ log/
+
+# Deploy to Pi
+deploy:
+  ./deploy.sh
