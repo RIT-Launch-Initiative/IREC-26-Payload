@@ -9,10 +9,11 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
     bringup_pkg = get_package_share_directory("cubesat_bringup")
     pi_io_pkg = get_package_share_directory("cubesat_pi_io")
+    radio_pkg = get_package_share_directory("cubesat_radio")
 
     pi_io_cfg = os.path.join(pi_io_pkg, "config", "pi_io.yaml")
     stm_bridge_cfg = os.path.join(bringup_pkg, "config", "stm_bridge.yaml")
-    radio_cfg = os.path.join(bringup_pkg, "config", "radio.yaml")
+    radio_cfg = os.path.join(radio_pkg, "config", "radio.yaml")
     vision_cfg = os.path.join(bringup_pkg, "config", "vision.yaml")
 
     flight_dir_arg = DeclareLaunchArgument(
