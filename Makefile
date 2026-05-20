@@ -8,7 +8,7 @@ all:
 	if [ -f /opt/ros/humble/setup.bash ]; then \
 	  source /opt/ros/humble/setup.bash; \
 	  if [ -f install/setup.bash ]; then source install/setup.bash; fi; \
-	  colcon build --symlink-install --event-handlers console_cohesion+ --cmake-args -G Ninja; \
+	    colcon build --symlink-install --event-handlers console_cohesion+ --cmake-args -G Ninja; \
 	else \
 	  $(COMPOSE) run --rm ros bash -lc \
 	    "cd /workspace && \
