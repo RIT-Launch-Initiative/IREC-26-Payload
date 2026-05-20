@@ -1,0 +1,16 @@
+stm_bridge_node:
+  ros__parameters:
+
+    # SPI transport
+    spi_device: "/dev/spidev0.1"
+    spi_freq_hz: 5000000
+    spi_mode: 0
+
+    # Protocol timing
+    packet_timeout_ms: 50
+    max_retries: 3
+    retry_delay_ms: 10
+
+    # Frame settings
+    max_packet_bytes: 64
+    crc_enabled: true
