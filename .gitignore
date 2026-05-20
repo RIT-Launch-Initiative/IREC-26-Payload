@@ -85,3 +85,7 @@ Thumbs.db # Windows
 # Custom launch files or configuration files (if not meant to be shared)
 # For example, if you have local test configurations
 # my_test_config.yaml
+
+build_pi
+install_pi
+log_pi
