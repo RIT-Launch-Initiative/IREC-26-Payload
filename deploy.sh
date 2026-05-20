@@ -18,7 +18,7 @@ usage() {
     cat <<EOF
 Usage: ./deploy.sh [--run "remote command"]
 
-Environment overrides: 
+Environment overrides:
   PI_SSH_TARGET     SSH target to reach the Pi (default: atlas)
   PI_REMOTE_USER    Remote username used for the default workspace path (default: aaron)
   PI_WORKSPACE      Remote workspace root (default: /home/\$PI_REMOTE_USER/atlas_ws)
@@ -161,7 +161,7 @@ EOF
 build_deploy_workspace() {
     local docker_platform="$1"
 
-    # rm -rf "${DEPLOY_BUILD_BASE}" "${DEPLOY_INSTALL_BASE}" "${DEPLOY_LOG_BASE}"
+    rm -rf "${DEPLOY_BUILD_BASE}" "${DEPLOY_INSTALL_BASE}" "${DEPLOY_LOG_BASE}"
 
     docker buildx build \
         --builder "${DEPLOY_BUILDER}" \

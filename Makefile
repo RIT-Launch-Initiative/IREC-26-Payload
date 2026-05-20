@@ -1,4 +1,4 @@
-.PHONY: all clean up down exec logs build local_perms compile_commands colcon shell
+.PHONY: all clean up down exec logs build local_perms compile_commands colcon shell deploy
 
 LOCAL_UID := $(shell id -u)
 LOCAL_GID := $(shell id -g)
@@ -8,13 +8,13 @@ all:
 	if [ -f /opt/ros/humble/setup.bash ]; then \
 	  source /opt/ros/humble/setup.bash; \
 	  if [ -f install/setup.bash ]; then source install/setup.bash; fi; \
-	  colcon build --symlink-install --event-handlers console_cohesion+ --cmake-args -G Ninja; \
+	    colcon build --symlink-install --event-handlers console_cohesion+ --cmake-args -G Ninja -DCMAKE_POLICY_DEFAULT_CMP0148=OLD; \
 	else \
 	  $(COMPOSE) run --rm ros bash -lc \
 	    "cd /workspace && \
 	    source /opt/ros/humble/setup.bash && \
 	    if [ -f /workspace/install/setup.bash ]; then source /workspace/install/setup.bash; fi && \
-	    colcon build --symlink-install --event-handlers console_cohesion+ --cmake-args -G Ninja"; \
+	    colcon build --symlink-install --event-handlers console_cohesion+ --cmake-args -G Ninja" -DCMAKE_POLICY_DEFAULT_CMP0148=OLD; \
 	fi
 
 clean:
@@ -46,3 +46,6 @@ compile_commands:
 
 colcon:
 	colcon build --symlink-install
+
+deploy:
+	./deploy.sh
