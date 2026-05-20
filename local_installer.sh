@@ -29,7 +29,7 @@ sudo apt-get install -y --no-install-recommends \
   gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly \
   libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
   libgpiod-dev libopencv-dev \
-  ros-${ROS_DISTRO}-desktop \
+  ros-${ROS_DISTRO}-ros-base \
   ros-${ROS_DISTRO}-vision-opencv \
   ros-${ROS_DISTRO}-gscam
 sudo apt-get clean
@@ -45,6 +45,7 @@ fi
 
 cd /tmp
 CMAKE_TAR="cmake-${CMAKE_VERSION}-Linux-${ARCH}.tar.gz"
+CMAKE_DIR="${CMAKE_TAR%.tar.gz}"
 wget "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/${CMAKE_TAR}"
 tar -xzvf "${CMAKE_TAR}"
 sudo cp -r "cmake-${CMAKE_VERSION}-Linux-${ARCH}/"* /usr/local
