@@ -29,7 +29,7 @@ sudo apt-get install -y --no-install-recommends \
   gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly \
   libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
   libgpiod-dev libopencv-dev \
-  ros-${ROS_DISTRO}-desktop \
+  ros-${ROS_DISTRO}-ros-base \
   ros-${ROS_DISTRO}-vision-opencv \
   ros-${ROS_DISTRO}-gscam
 sudo apt-get clean
