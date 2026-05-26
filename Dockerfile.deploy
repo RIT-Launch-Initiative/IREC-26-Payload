@@ -1,5 +1,5 @@
 ARG TARGETPLATFORM
-FROM --platform=$TARGETPLATFORM ros:humble-ros-base-jammy
+FROM ros:humble-ros-base-jammy
 
 ENV DEBIAN_FRONTEND=noninteractive \
     TERM=xterm-256color \
