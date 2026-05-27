@@ -14,15 +14,23 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/BoostEvent.msg"
   "msg/ArmStatus.msg"
   "msg/RadioPacket.msg"
+  "msg/ArmJoint.msg"
+  "msg/ArmState.msg"
+  "msg/FlipServo.msg"
+  "msg/PayloadOrientation.msg"
   # Services
   "srv/StartNewFlight.srv"
   "srv/SetFlightFolder.srv"
   "srv/SetServoPosition.srv"
   "srv/MoveServoRamp.srv"
   "srv/SendRadioPacket.srv"
+  "srv/GetImageBlock.srv"
+  "srv/HoldShut.srv"
   # Actions
   "action/FlipVehicle.action"
+  "action/FlipServoAction.action"
   "action/ExtendArm.action"
+  "action/JogMotor.action"
   "action/CapturePanorama.action"
   DEPENDENCIES builtin_interfaces
 )

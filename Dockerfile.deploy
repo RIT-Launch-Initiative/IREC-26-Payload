@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-vcstool \
     sudo \
     wget \
+    pkg-config \
     ros-${ROS_DISTRO}-launch \
     ros-${ROS_DISTRO}-launch-ros \
     ros-${ROS_DISTRO}-rclcpp \

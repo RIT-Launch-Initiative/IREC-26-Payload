@@ -1,0 +1,7 @@
+uint8 side
+uint8 SIDE_RECO_BAY = 0
+uint8 SIDE_BASE = 1
+uint8 SIDE_BACKPLATE = 2
+uint8 SIDE_TOP = 3
+uint8 SIDE_DOUBLE_WALL = 4
+uint8 SIDE_SINGLE_WALL= 5

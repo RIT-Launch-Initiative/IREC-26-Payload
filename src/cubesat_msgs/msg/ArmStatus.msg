@@ -1,10 +1,13 @@
 builtin_interfaces/Time stamp
-float32 shoulder_angle_rad
-float32 elbow_angle_rad
-float32 wrist_angle_rad
-bool shoulder_ocp
-bool elbow_ocp
-bool wrist_ocp
-bool at_target
-float32 stm_temp_c
-string fault
+float32 shoulder_yaw_deg
+float32 shoulder_pitch_deg
+float32 elbow_angle_deg
+float32 wrist_angle_deg
+
+bool booted
+ArmState state
+bool arm_move_failed
+bool wrist_servo_en
+bool flip_servo_en
+bool motor_en
+bool overtemp

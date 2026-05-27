@@ -41,16 +41,16 @@ PiIoNode::PiIoNode(const rclcpp::NodeOptions &options) : rclcpp::Node("pi_io_nod
     accel_pub = create_publisher<cubesat_msgs::msg::AccelSample>("pi/lis3dh", 50);
 
     if (!gps.open(gps_dev, gps_baud)) {
-        RCLCPP_ERROR(get_logger(), "GPS open failed: device='%s' baud=%d", gps_dev.c_str(), gps_baud);
+        RCLCPP_ERROR(get_logger(), "GPS open failed: device='%s' baud=%ld", gps_dev.c_str(), gps_baud);
     }
     if (!ina.open(ina_dev, static_cast<uint8_t>(ina_addr))) {
-        RCLCPP_ERROR(get_logger(), "INA260 open failed: device='%s' addr=0x%02X", ina_dev.c_str(), ina_addr);
+        RCLCPP_ERROR(get_logger(), "INA260 open failed: device='%s' addr=0x%02lX", ina_dev.c_str(), ina_addr);
     }
     if (!lis.open(lis_dev, static_cast<uint8_t>(lis_addr))) {
-        RCLCPP_ERROR(get_logger(), "LIS3DH open failed: device='%s' addr=0x%02X", lis_dev.c_str(), lis_addr);
+        RCLCPP_ERROR(get_logger(), "LIS3DH open failed: device='%s' addr=0x%02lX", lis_dev.c_str(), lis_addr);
     } else if (!lis.configure(static_cast<uint16_t>(lis_rate), static_cast<uint8_t>(lis_range))) {
         RCLCPP_ERROR(get_logger(),
-                     "LIS3DH configure failed: rate=%d Hz range=±%dg (allowed "
+                     "LIS3DH configure failed: rate=%ld Hz range=±%ldg (allowed "
                      "rates: 1/10/25/50/100/200/400, ranges: 2/4/8/16)",
                      lis_rate, lis_range);
     }

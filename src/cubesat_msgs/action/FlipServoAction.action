@@ -1,0 +1,13 @@
+FlipServo servo_id
+uint8 open_duration         # How long to stay open for in 10 ms increments
+uint8 openness              # How much to open
+uint8 open_travel_duration  # How long to move the servo on open in 10 ms increments
+uint8 closedness            # where to go after open duration
+uint8 close_travel_duration #How long to move the servo on close in 10 ms # increments
+
+# if open duration is set to this, the servo wont be turned off at the end of the action (TAKE CARE AS YOU CAN GET YOURSELF INTO ELECTRICAL TROUBLE BY STALLING MULTIPLE THINGS AT ONCE)
+uint8 OPEN_DURATION_FOREVER = 255 
+---
+bool success
+---
+float32 progress
