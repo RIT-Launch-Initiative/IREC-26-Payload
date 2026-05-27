@@ -12,14 +12,19 @@ RadioNode::RadioNode(const rclcpp::NodeOptions &options)
 
   rxPacketPub =
       create_publisher<cubesat_msgs::msg::RadioPacket>("radio/rx_packet", 10);
+  
   txPacketSub = create_subscription<cubesat_msgs::msg::RadioPacket>(
       "radio/tx_packet", 10,
       std::bind(&RadioNode::handleTxPacket, this, std::placeholders::_1));
+  
   sendRadioPacketSrv = create_service<cubesat_msgs::srv::SendRadioPacket>(
       "radio/send_packet",
       std::bind(&RadioNode::handleSendRadioPacket, this, std::placeholders::_1,
                 std::placeholders::_2));
+  
   radio = std::make_unique<Sx1262Radio>(hardware);
+
+
 
   if (!radio->open()) {
     RCLCPP_WARN(get_logger(), "Radio hardware open failed; verify SPI device, "
@@ -32,6 +37,8 @@ RadioNode::RadioNode(const rclcpp::NodeOptions &options)
                               "SX1262 initialization sequence");
     return;
   }
+
+  
 
   if (!radio->setReceiveMode()) {
     RCLCPP_WARN(get_logger(),
@@ -136,7 +143,7 @@ bool RadioNode::sendPacket(const std::vector<uint8_t> &data) {
   const bool success = radio->send(data);
   txActive.store(false);
 
-  if (!success) {
+  if (!success) { 
     RCLCPP_WARN(get_logger(), "Radio TX failed for %zu bytes", data.size());
   }
   return success;

@@ -26,7 +26,7 @@ target_include_directories(cubesat_radio_hal PUBLIC
   $<INSTALL_INTERFACE:include>
   ${GPIOD_INCLUDE_DIRS}
 )
-target_link_libraries(cubesat_radio_hal PUBLIC ${GPIOD_LIBRARIES})
+target_link_libraries(cubesat_radio_hal PUBLIC ${GPIOD_LIBRARIES} rclcpp::rclcpp)
 
 add_library(cubesat_radio_core STATIC
   src/sx1262_radio.cpp

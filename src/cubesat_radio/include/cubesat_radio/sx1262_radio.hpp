@@ -18,6 +18,7 @@ public:
     Sx1262Radio& operator=(const Sx1262Radio&) = delete;
 
     bool open();
+    bool reset();
     bool configure(const RadioProfile& profile);
     bool send(const std::vector<uint8_t>& data);
     std::optional<ReceivedPacket> receive();

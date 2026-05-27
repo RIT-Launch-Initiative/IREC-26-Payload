@@ -9,6 +9,8 @@
 #include <cstring>
 #include <ctime>
 #include <thread>
+#include <rclcpp/rclcpp.hpp>
+
 
 extern "C" {
 #include "sx126x_hal.h"
@@ -75,6 +77,9 @@ bool request_rising_edge_input(gpiod_chip* chip, int line_number, const char* co
 }
 
 bool set_optional_output(gpiod_line* line, bool active_high, bool enabled) {
+    auto logger = rclcpp::get_logger("sx1262");
+    RCLCPP_INFO(logger, "setting line %p to logical %d", line, (int)enabled);
+
     if (line == nullptr) {
         return true;
     }
@@ -123,6 +128,9 @@ bool wait_for_dio1_rising(Sx126xLinuxHalContext& context, int timeout_ms) {
 }
 
 bool set_rf_switch_rx(Sx126xLinuxHalContext& context) {
+    auto logger = rclcpp::get_logger("sx1262");
+    RCLCPP_INFO(logger, "setting rf switch rx");
+
     return set_optional_output(context.tx_enable, context.tx_enable_active_high, false) &&
            set_optional_output(context.rx_enable, context.rx_enable_active_high, true);
 }
