@@ -1,5 +1,5 @@
 ARG TARGETPLATFORM
-FROM --platform=$TARGETPLATFORM ros:humble-ros-base-jammy@sha256:1c305dd839535098175c5a74801cb6f46d567bae965d06255c3ecb38948ef9ac
+FROM ros:humble-ros-base-jammy@sha256:1c305dd839535098175c5a74801cb6f46d567bae965d06255c3ecb38948ef9ac
 
 ENV DEBIAN_FRONTEND=noninteractive \
     TERM=xterm-256color \

@@ -164,6 +164,7 @@ build_deploy_workspace() {
     # rm -rf "${DEPLOY_BUILD_BASE}" "${DEPLOY_INSTALL_BASE}" "${DEPLOY_LOG_BASE}"
 
     docker buildx build \
+        --pull=false \
         --builder "${DEPLOY_BUILDER}" \
         --file "${DEPLOY_DOCKERFILE}" \
         --load \
@@ -189,7 +190,7 @@ build_deploy_workspace() {
                 --install-base ${DEPLOY_INSTALL_BASE} \
                 --merge-install \
                 --event-handlers console_cohesion+ \
-                --cmake-args -G Ninja -DCMAKE_POLICY_DEFAULT_CMP0148=OLD;
+                --cmake-args -G Ninja -DCMAKE_POLICY_DEFAULT_CMP0148=OLD
         "
 }
 
