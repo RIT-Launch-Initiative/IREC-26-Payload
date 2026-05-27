@@ -33,23 +33,24 @@ enum class SpiCommand : uint8_t {
     StartServo1 = 7,
     StartServo2 = 8,
     StartServo3 = 9,
-    StopMoving = 10,
+    StartHold = 10,
+    StopMoving = 11,
 
-    WritePoseEst = 11,  // 'rezero' yaw, spitch, epitch, wpitch
-    R_ReadPoseEst = 12, // yaw, spitch, epitch, wpitch
+    WritePoseEst = 12,  // 'rezero' yaw, spitch, epitch, wpitch
+    R_ReadPoseEst = 13, // yaw, spitch, epitch, wpitch
 
-    WriteArmTarget = 13,
-    R_ReadArmTarget = 14,
+    WriteArmTarget = 14,
+    R_ReadArmTarget = 15,
 
-    WriteFlipServo1Motion = 15,
-    WriteFlipServo2Motion = 16,
-    WriteFlipServo3Motion = 17,
+    WriteFlipServo1Motion = 16,
+    WriteFlipServo2Motion = 17,
+    WriteFlipServo3Motion = 18,
 
-    R_ReadFlipServo1Motion = 18,
-    R_ReadFlipServo2Motion = 19,
-    R_ReadFlipServo3Motion = 20,
+    R_ReadFlipServo1Motion = 19,
+    R_ReadFlipServo2Motion = 20,
+    R_ReadFlipServo3Motion = 21,
 
-    R_ReadTemps = 21, // stm, link1, link2
+    R_ReadTemps = 22, // stm, link1, link2
 };
 
 bool CrashoutSTM::open(std::string spidev, uint32_t speed_hz) {
@@ -74,7 +75,9 @@ CrashoutSTM::~CrashoutSTM() {
     }
 }
 
-uint32_t FlipServoMotion::total_duration() const { return open_duration + open_travel_duration + close_travel_duration; }
+uint32_t FlipServoMotion::total_duration() const {
+    return open_duration + open_travel_duration + close_travel_duration;
+}
 
 ArmPose decode_pose(const std::span<uint8_t> &buf) {
     return {
@@ -99,6 +102,12 @@ void CrashoutSTM::startArmMovement() {
     uint8_t cmd = (uint8_t)SpiCommand::StartArm;
     transceive(Transfer{cmd});
 }
+
+void CrashoutSTM::startHold() {
+    uint8_t cmd = (uint8_t)(SpiCommand::StartHold);
+    transceive(Transfer{cmd});
+}
+
 
 void CrashoutSTM::stopMovement() {
     uint8_t cmd = (uint8_t)(SpiCommand::StopMoving);
@@ -176,34 +185,7 @@ std::optional<Status> CrashoutSTM::getStatus() {
     return status;
 }
 
-void dumpStatus(StatusWord word) {
-    auto testBit = [=](int bit) { return (word >> bit) & 1; };
-    auto testBitAndPrintChar = [&](int bit, char c) {
-        if (testBit(bit)) {
-            printf("%c", c);
-        } else {
-            printf(" ");
-        }
-    };
 
-    uint8_t rtype = (word >> StatusBit_RType0);
-    printf("%d:", rtype);
-    testBitAndPrintChar(StatusBit_Overtemp, 'o');
-    testBitAndPrintChar(StatusBit_MotorEn, 'M');
-    testBitAndPrintChar(StatusBit_FlipServoEn, '^');
-    testBitAndPrintChar(StatusBit_WristServoEn, 'W');
-    testBitAndPrintChar(StatusBit_MovingArmFailed, '!');
-    testBitAndPrintChar(StatusBit_MovingFlipServo3, '3');
-    testBitAndPrintChar(StatusBit_MovingFlipServo2, '2');
-    testBitAndPrintChar(StatusBit_MovingFlipServo1, '1');
-    testBitAndPrintChar(StatusBit_MovingArm, 'A');
-    testBitAndPrintChar(StatusBit_Booted, 'B');
-}
-
-void dumpStatusLn(StatusWord word) {
-    dumpStatus(word);
-    printf("\n");
-}
 
 std::optional<ArmPose> CrashoutSTM::getArmPoseEst() {
     Transfer outbound{(uint8_t)SpiCommand::R_ReadPoseEst};

@@ -15,16 +15,15 @@ enum class State {
 using StatusWord = uint16_t;
 
 enum StatusBit {
-    StatusBit_Booted = 0,           // set to 1 if board is ready
-    StatusBit_MovingArm = 1,        // Arm
-    StatusBit_MovingFlipServo1 = 2, // Flipping Servo 1
-    StatusBit_MovingFlipServo2 = 3, // Flipping Servo 2
-    StatusBit_MovingFlipServo3 = 4, // Flipping Servo 3
+    StatusBit_Booted = 0,            // set to 1 if board is ready
+    StatusBit_State0 = 1,        // Arm
+    StatusBit_State1 = 2, // Flipping Servo 1
+    StatusBit_State2 = 3, // Flipping Servo 2
+    
     StatusBit_MovingArmFailed = 5,  // Arm failed bc OCP
     StatusBit_WristServoEn = 6,     // Efuse enable
     StatusBit_FlipServoEn = 7,      // 8.4V Buck enable
-
-    StatusBit_MotorEn = 8, // not sleeping
+    StatusBit_MotorEn = 8,          // not sleeping
     StatusBit_Overtemp = 9,
 
     // identify what kind of response this is 0 - 31

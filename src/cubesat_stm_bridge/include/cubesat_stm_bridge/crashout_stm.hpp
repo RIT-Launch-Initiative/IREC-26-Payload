@@ -32,6 +32,7 @@ class CrashoutSTM {
     std::optional<Vec3_16> getLink2IMU();
 
     void reset();
+    void startHold();
     void setPoseEst(const ArmPose &pose);
     void setArmTarget(const ArmPose &pose);
     void startArmMovement();

@@ -1,8 +1,10 @@
 #pragma once
 
 #include "crashout_stm.hpp"
+#include "cubesat_msgs/srv/hold_shut.hpp"
 #include "stm_data.hpp"
 #include <cubesat_msgs/action/flip_servo_action.hpp>
+#include <cubesat_msgs/msg/arm_state.hpp>
 #include <cubesat_msgs/msg/arm_status.hpp>
 
 #include "rclcpp_action/rclcpp_action.hpp"
@@ -20,11 +22,8 @@ class StmBridgeNode : public rclcpp::Node {
         MovingServo1,
         MovingServo2,
         MovingServo3,
-        JoggingShoulderYaw,
-        JoggingShoulderPitch,
-        JoggingElbowPitch,
-        JoggingWristPitch,
         MovingArm,
+        Holding,
     };
 
     explicit StmBridgeNode(const rclcpp::NodeOptions &options = rclcpp::NodeOptions());
@@ -36,6 +35,9 @@ class StmBridgeNode : public rclcpp::Node {
     void onStatusTimer();
     void tickServo(StmBridge::FlipServo servoid);
     void tickArm();
+
+    void holdShut(const std::shared_ptr<cubesat_msgs::srv::HoldShut::Request> request,
+                  std::shared_ptr<cubesat_msgs::srv::HoldShut::Response> response);
 
     void FillArmStatusFlags(StmBridge::StatusWord word, cubesat_msgs::msg::ArmStatus &status);
 
@@ -52,6 +54,7 @@ class StmBridgeNode : public rclcpp::Node {
     rclcpp::Time flip_timeout_time{};
 
     rclcpp_action::Server<FlipServoAction>::SharedPtr flip_action_server_;
+    rclcpp::Service<cubesat_msgs::srv::HoldShut>::SharedPtr hold_service;
 
     StmBridge::CrashoutSTM crashout;
     cubesat_msgs::msg::ArmStatus last_status;

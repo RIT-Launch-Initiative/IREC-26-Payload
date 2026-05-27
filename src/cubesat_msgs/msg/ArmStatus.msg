@@ -5,10 +5,7 @@ float32 elbow_angle_deg
 float32 wrist_angle_deg
 
 bool booted
-bool moving_arm
-bool moving_flip_servo1
-bool moving_flip_servo2
-bool moving_flip_servo3
+ArmState state
 bool arm_move_failed
 bool wrist_servo_en
 bool flip_servo_en

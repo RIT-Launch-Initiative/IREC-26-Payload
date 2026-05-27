@@ -51,6 +51,10 @@ StmBridgeNode::StmBridgeNode(const rclcpp::NodeOptions &options) : rclcpp::Node(
         std::bind(&StmBridgeNode::handle_flip_cancel, this, _1),
         std::bind(&StmBridgeNode::handle_flip_accepted, this, _1));
 
+    this->hold_service = create_service<cubesat_msgs::srv::HoldShut>(
+        "/stm/hold_shut",
+        std::bind(&StmBridgeNode::holdShut, this, std::placeholders::_1, std::placeholders::_2));
+
     status_timer = create_wall_timer(periodFromHz(status_hz), [this] { onStatusTimer(); });
     // power_timer = create_wall_timer(periodFromHz(ina_hz), [this] { onPowerTimer(); });
     // accel_timer = create_wall_timer(periodFromHz(lis_hz), [this] { onAccelTimer(); });
@@ -58,11 +62,12 @@ StmBridgeNode::StmBridgeNode(const rclcpp::NodeOptions &options) : rclcpp::Node(
 
 void StmBridgeNode::FillArmStatusFlags(StmBridge::StatusWord word, cubesat_msgs::msg::ArmStatus &status) {
     using namespace StmBridge;
+    uint8_t state_u8 = (uint8_t)((word >> 1) & 0b111);
     status.booted = CheckStatusBit(word, StatusBit_Booted);
-    status.moving_arm = CheckStatusBit(word, StatusBit_MovingArm);
-    status.moving_flip_servo1 = CheckStatusBit(word, StatusBit_MovingFlipServo1);
-    status.moving_flip_servo2 = CheckStatusBit(word, StatusBit_MovingFlipServo2);
-    status.moving_flip_servo3 = CheckStatusBit(word, StatusBit_MovingFlipServo3);
+    cubesat_msgs::msg::ArmState arm_state{};
+    arm_state.state = state_u8;
+
+    status.state = arm_state;
     status.arm_move_failed = CheckStatusBit(word, StatusBit_MovingArmFailed);
     status.wrist_servo_en = CheckStatusBit(word, StatusBit_WristServoEn);
     status.flip_servo_en = CheckStatusBit(word, StatusBit_FlipServoEn);
@@ -100,6 +105,9 @@ void StmBridgeNode::onStatusTimer() {
     case BridgeMode::MovingServo3:
         tickServo(StmBridge::Servo3);
         break;
+    case BridgeMode::Holding:
+        // don't need to do anything
+        break;
     default:
         RCLCPP_WARN(get_logger(), "Unimplemented mode tick");
     }
@@ -111,16 +119,17 @@ void StmBridgeNode::tickServo(StmBridge::FlipServo servoid) {
         active_mode = BridgeMode::Idle;
         return;
     }
+    using ArmState = cubesat_msgs::msg::ArmState;
     bool still_moving = false;
     switch (servoid) {
     case StmBridge::Servo1:
-        still_moving = last_status.moving_flip_servo1;
+        still_moving = last_status.state.state == ArmState::STATE_SERVO1_MOVING;
         break;
     case StmBridge::Servo2:
-        still_moving = last_status.moving_flip_servo2;
+        still_moving = last_status.state.state == ArmState::STATE_SERVO2_MOVING;
         break;
     case StmBridge::Servo3:
-        still_moving = last_status.moving_flip_servo3;
+        still_moving = last_status.state.state == ArmState::STATE_SERVO3_MOVING;
         break;
     }
     if (now() < flip_should_show_progress_time) {
@@ -135,9 +144,9 @@ void StmBridgeNode::tickServo(StmBridge::FlipServo servoid) {
         auto result = std::make_shared<FlipServoAction::Result>();
         result->success = !overtime;
         if (overtime) {
-            flip_servo_action_handle->succeed(result);
-        } else {
             flip_servo_action_handle->abort(result);
+        } else {
+            flip_servo_action_handle->succeed(result);
         }
         active_mode = BridgeMode::Idle;
         flip_servo_action_handle = nullptr;
@@ -158,6 +167,33 @@ void StmBridgeNode::tickServo(StmBridge::FlipServo servoid) {
     auto feedback = std::make_shared<FlipServoAction::Feedback>();
     feedback->progress = 0.5;
     flip_servo_action_handle->publish_feedback(feedback);
+}
+
+void StmBridgeNode::holdShut(const std::shared_ptr<cubesat_msgs::srv::HoldShut::Request> request,
+                             std::shared_ptr<cubesat_msgs::srv::HoldShut::Response> response) {
+    RCLCPP_INFO(get_logger(), "Request to hold=%d", (int)request->should_hold);
+    if (request->should_hold) {
+        if (active_mode == BridgeMode::Idle) {
+            // start
+            crashout.startHold();
+            active_mode = BridgeMode::Holding;
+            response->success = true;
+        } else {
+            // decline
+            response->success = false;
+        }
+    } else {
+        if (active_mode == BridgeMode::Idle) {
+            // already there, immediate success
+            response->success = true;
+        } else if (active_mode == BridgeMode::Holding) {
+            // do it
+            RCLCPP_INFO(get_logger(), "Stopping Hold");
+            crashout.stopMovement();
+            active_mode = BridgeMode::Idle;
+            response->success = true;
+        }
+    }
 }
 
 rclcpp_action::GoalResponse StmBridgeNode::handle_flip_goal(const rclcpp_action::GoalUUID &uuid,
@@ -221,8 +257,6 @@ void StmBridgeNode::handle_flip_accepted(const std::shared_ptr<GoalHandleFlipSer
     active_mode = servoToMode(goal.servo_id);
     flip_servo_action_handle = goal_handle;
 
-    crashout.startServoMovement(rosToStm(goal.servo_id));
-
     flip_start_time = now();
     // 30 ms to see response
     flip_should_show_progress_time = flip_start_time + rclcpp::Duration(0, 30 * 1000 * 1000);
@@ -230,12 +264,11 @@ void StmBridgeNode::handle_flip_accepted(const std::shared_ptr<GoalHandleFlipSer
     uint32_t duration_ms = motion.total_duration() * 10;
     uint64_t duration_ns = ((uint64_t)duration_ms * 1000 * 1000) * 2;
     flip_timeout_time = flip_start_time + rclcpp::Duration(duration_ns / 1000000000, duration_ns % 1000000000);
-    RCLCPP_INFO(get_logger(), "Timeout %lld ns. Starting at %lld, waiting for %lld, timeout at %lld", duration_ns,
+    RCLCPP_INFO(get_logger(), "Timeout %ld ns. Starting at %ld, waiting for %ld, timeout at %ld", duration_ns,
                 flip_start_time.nanoseconds(), flip_should_show_progress_time.nanoseconds(),
                 flip_timeout_time.nanoseconds());
-    // this needs to return quickly to avoid blocking the executor, so spin up a new thread
-    // std::thread{std::bind(&FibonacciActionServer::execute, this, _1), goal_handle}.detach();
-    // tell stm and tell it to go
+
+    crashout.startServoMovement(rosToStm(goal.servo_id));
 }
 
 } // namespace cubesat_stm_bridge

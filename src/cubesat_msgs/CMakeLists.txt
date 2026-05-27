@@ -15,6 +15,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ArmStatus.msg"
   "msg/RadioPacket.msg"
   "msg/ArmJoint.msg"
+  "msg/ArmState.msg"
   "msg/FlipServo.msg"
   "msg/PayloadOrientation.msg"
   # Services
@@ -24,6 +25,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/MoveServoRamp.srv"
   "srv/SendRadioPacket.srv"
   "srv/GetImageBlock.srv"
+  "srv/HoldShut.srv"
   # Actions
   "action/FlipVehicle.action"
   "action/FlipServoAction.action"
