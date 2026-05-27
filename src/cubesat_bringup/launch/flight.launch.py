@@ -63,15 +63,15 @@ def generate_launch_description():
     #     arguments=["--ros-args", "--log-level", "WARN"],
     # )
 
-    # radio = Node(
-    #     package="cubesat_radio",
-    #     executable="radio_node",
-    #     name="radio_node",
-    #     parameters=[radio_cfg, shared],
-    #     respawn=True,
-    #     respawn_delay=2.0,
-    #     arguments=["--ros-args", "--log-level", "WARN"],
-    # )
+    radio = Node(
+        package="cubesat_radio",
+        executable="radio_node",
+        name="radio_node",
+        parameters=[radio_cfg, shared],
+        respawn=True,
+        respawn_delay=2.0,
+        arguments=["--ros-args", "--log-level", "WARN"],
+    )
 
     # vision = Node(
     #     package="cubesat_vision",
@@ -90,7 +90,7 @@ def generate_launch_description():
             # flight_manager,
             # stm_bridge,
             # control,
-            # radio,
+            radio,
             # vision,
         ]
     )

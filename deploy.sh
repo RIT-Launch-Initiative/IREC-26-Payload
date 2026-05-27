@@ -161,9 +161,10 @@ EOF
 build_deploy_workspace() {
     local docker_platform="$1"
 
-    rm -rf "${DEPLOY_BUILD_BASE}" "${DEPLOY_INSTALL_BASE}" "${DEPLOY_LOG_BASE}"
+    # rm -rf "${DEPLOY_BUILD_BASE}" "${DEPLOY_INSTALL_BASE}" "${DEPLOY_LOG_BASE}"
 
     docker buildx build \
+        --pull=false \
         --builder "${DEPLOY_BUILDER}" \
         --file "${DEPLOY_DOCKERFILE}" \
         --load \

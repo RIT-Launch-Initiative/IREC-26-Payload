@@ -2,18 +2,19 @@ radio_node:
   ros__parameters:
 
     # LoRa primary profile
-    lora_frequency_hz: 915000000
-    lora_bandwidth_hz: 125000
-    lora_spreading_factor: 9
-    lora_coding_rate: 5
-    lora_tx_power_dbm: 17
-    lora_preamble_length: 8
+    frequency_hz: 433000000
+    bandwidth_hz: 125000
+    spreading_factor: 9
+    coding_rate: 5
+    tx_power_dbm: 22
+    preamble_length: 8
 
     # SPI transport
-    spi_device: "/dev/spidev0.0"
-    spi_freq_hz: 8000000
-    reset_pin: 25 # TODO: Figure out real pins
-    dio0_pin: 24
+    spi_device: "/dev/spidev1.0"
+    spi_speed_hz: 8000000
+    reset_gpio: 6 # GPIO 6  (BCM)
+    dio1_gpio: 23 # GPIO 23 (BCM)
+    busy_gpio: 27 # GPIO 27 (BCM)
 
     # Fallback profile (used if primary fails to TX)
     fallback_spreading_factor: 12
