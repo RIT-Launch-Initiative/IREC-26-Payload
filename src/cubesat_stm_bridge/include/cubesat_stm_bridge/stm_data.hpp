@@ -65,7 +65,8 @@ struct FlipServoMotion {
     uint8_t close_travel_duration; // How long to move the servo on close in 10 ms
                                    // increments
 
-    uint32_t total_duration();
+    // total duration in 10 ms increments
+    uint32_t total_duration() const;
 };
 
 struct FlipServoMotionState {

@@ -20,9 +20,7 @@ void dump_transfer(std::string prefix, Transfer xfer) {
     printf("\n");
 }
 
-bool CheckStatusBit(StatusWord word, StatusBit bit_index){
-    return (word >> bit_index) & 1;
-}
+bool CheckStatusBit(StatusWord word, StatusBit bit_index) { return (word >> bit_index) & 1; }
 
 enum class SpiCommand : uint8_t {
     NoOp = 0, // do nothing, just asking for status
@@ -55,7 +53,7 @@ enum class SpiCommand : uint8_t {
 };
 
 bool CrashoutSTM::open(std::string spidev, uint32_t speed_hz) {
-    spi_fd = open(spidev.c_str(), O_RDWR | O_CLOEXEC);
+    spi_fd = ::open(spidev.c_str(), O_RDWR | O_CLOEXEC);
     if (spi_fd < 0) {
         return false;
     }
@@ -75,6 +73,8 @@ CrashoutSTM::~CrashoutSTM() {
         spi_fd = -1;
     }
 }
+
+uint32_t FlipServoMotion::total_duration() const { return open_duration + open_travel_duration + close_travel_duration; }
 
 ArmPose decode_pose(const std::span<uint8_t> &buf) {
     return {
@@ -97,6 +97,11 @@ FlipServoMotion decode_servo_motion(const std::span<uint8_t> &buf) {
 
 void CrashoutSTM::startArmMovement() {
     uint8_t cmd = (uint8_t)SpiCommand::StartArm;
+    transceive(Transfer{cmd});
+}
+
+void CrashoutSTM::stopMovement() {
+    uint8_t cmd = (uint8_t)(SpiCommand::StopMoving);
     transceive(Transfer{cmd});
 }
 

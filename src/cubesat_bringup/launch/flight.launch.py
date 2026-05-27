@@ -12,7 +12,7 @@ def generate_launch_description():
     stm_bridge_pkg = get_package_share_directory("cubesat_stm_bridge")
 
     pi_io_cfg = os.path.join(pi_io_pkg, "config", "pi_io.yaml")
-    stm_bridge_cfg = os.path.join(stm_bridge_pkg, "config", "stm_bridge.yaml")
+    stm_bridge_cfg = os.path.join(bringup_pkg, "config", "stm_bridge.yaml")
     radio_cfg = os.path.join(bringup_pkg, "config", "radio.yaml")
     vision_cfg = os.path.join(bringup_pkg, "config", "vision.yaml")
 
@@ -51,7 +51,7 @@ def generate_launch_description():
         parameters=[stm_bridge_cfg, shared],
         respawn=True,
         respawn_delay=2.0,
-        arguments=["--ros-args", "--log-level", "WARN"],
+        arguments=["--ros-args", "--log-level", "INFO"],
     )
 
     # control = Node(

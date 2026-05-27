@@ -26,6 +26,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/GetImageBlock.srv"
   # Actions
   "action/FlipVehicle.action"
+  "action/FlipServoAction.action"
   "action/ExtendArm.action"
   "action/JogMotor.action"
   "action/CapturePanorama.action"

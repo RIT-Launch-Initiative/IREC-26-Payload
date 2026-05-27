@@ -44,6 +44,12 @@ StmBridgeNode::StmBridgeNode(const rclcpp::NodeOptions &options) : rclcpp::Node(
     //                  "rates: 1/10/25/50/100/200/400, ranges: 2/4/8/16)",
     //                  lis_rate, lis_range);
     // }
+    using namespace std::placeholders;
+
+    this->flip_action_server_ = rclcpp_action::create_server<FlipServoAction>(
+        this, "/stm/flip_servo", std::bind(&StmBridgeNode::handle_flip_goal, this, _1, _2),
+        std::bind(&StmBridgeNode::handle_flip_cancel, this, _1),
+        std::bind(&StmBridgeNode::handle_flip_accepted, this, _1));
 
     status_timer = create_wall_timer(periodFromHz(status_hz), [this] { onStatusTimer(); });
     // power_timer = create_wall_timer(periodFromHz(ina_hz), [this] { onPowerTimer(); });
@@ -74,10 +80,162 @@ void StmBridgeNode::onStatusTimer() {
     StmBridge::Status arm_status = *maybe_status;
     cubesat_msgs::msg::ArmStatus pub_status;
     FillArmStatusFlags(arm_status.status_word, pub_status);
+    pub_status.stamp = now();
     pub_status.shoulder_yaw_deg = arm_status.pose.shoulder_yaw;
     pub_status.shoulder_pitch_deg = arm_status.pose.shoulder_pitch;
     pub_status.elbow_angle_deg = arm_status.pose.elbow_pitch;
     pub_status.wrist_angle_deg = arm_status.pose.wrist_pitch;
+    last_status = pub_status;
+    arm_pub->publish(pub_status);
+
+    switch (active_mode) {
+    case BridgeMode::Idle:
+        break;
+    case BridgeMode::MovingServo1:
+        tickServo(StmBridge::Servo1);
+        break;
+    case BridgeMode::MovingServo2:
+        tickServo(StmBridge::Servo2);
+        break;
+    case BridgeMode::MovingServo3:
+        tickServo(StmBridge::Servo3);
+        break;
+    default:
+        RCLCPP_WARN(get_logger(), "Unimplemented mode tick");
+    }
+}
+
+void StmBridgeNode::tickServo(StmBridge::FlipServo servoid) {
+    if (flip_servo_action_handle == nullptr) {
+        RCLCPP_WARN(get_logger(), "Was in servo mode but servo action goal handle was null!!");
+        active_mode = BridgeMode::Idle;
+        return;
+    }
+    bool still_moving = false;
+    switch (servoid) {
+    case StmBridge::Servo1:
+        still_moving = last_status.moving_flip_servo1;
+        break;
+    case StmBridge::Servo2:
+        still_moving = last_status.moving_flip_servo2;
+        break;
+    case StmBridge::Servo3:
+        still_moving = last_status.moving_flip_servo3;
+        break;
+    }
+    if (now() < flip_should_show_progress_time) {
+        // don't cancel just bc we asked before it realized we commanded it
+        still_moving = true;
+    }
+
+    bool overtime = now() > flip_timeout_time;
+    if (!still_moving || overtime) {
+        RCLCPP_INFO(get_logger(), "Finished Servo Movement. Overtime %s", overtime ? "yes" : "no");
+        // say end (if not cancelled, success)
+        auto result = std::make_shared<FlipServoAction::Result>();
+        result->success = !overtime;
+        if (overtime) {
+            flip_servo_action_handle->succeed(result);
+        } else {
+            flip_servo_action_handle->abort(result);
+        }
+        active_mode = BridgeMode::Idle;
+        flip_servo_action_handle = nullptr;
+        return;
+    }
+
+    if (flip_servo_action_handle->is_canceling()) {
+        crashout.stopMovement();
+        RCLCPP_INFO(get_logger(), "Cancelled Servo Movement");
+        auto result = std::make_shared<FlipServoAction::Result>();
+        result->success = false;
+        flip_servo_action_handle->canceled(result);
+        active_mode = BridgeMode::Idle;
+        flip_servo_action_handle = nullptr;
+        return;
+    }
+
+    auto feedback = std::make_shared<FlipServoAction::Feedback>();
+    feedback->progress = 0.5;
+    flip_servo_action_handle->publish_feedback(feedback);
+}
+
+rclcpp_action::GoalResponse StmBridgeNode::handle_flip_goal(const rclcpp_action::GoalUUID &uuid,
+                                                            std::shared_ptr<const FlipServoAction::Goal> goal) {
+    RCLCPP_INFO(this->get_logger(),
+                "Received goal request to flip servo%d. Open to %d in %d ms. Hold for %d ms. Close to %d in %d ms",
+                ((int)(goal->servo_id.id) + 1), goal->openness, (goal->open_travel_duration * 10),
+                (goal->open_duration * 10), goal->closedness, (goal->close_travel_duration * 10));
+    (void)uuid;
+    if (active_mode == BridgeMode::Idle) {
+        return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+    } else {
+        RCLCPP_WARN(get_logger(), "Rejecting flip request because not idle");
+        return rclcpp_action::GoalResponse::REJECT;
+    }
+}
+
+rclcpp_action::CancelResponse
+StmBridgeNode::handle_flip_cancel(const std::shared_ptr<GoalHandleFlipServo> goal_handle) {
+    RCLCPP_INFO(this->get_logger(), "Received request to cancel flip");
+    (void)goal_handle;
+    // always accept cancels, handled in tickServo / tickArm
+    return rclcpp_action::CancelResponse::ACCEPT;
+}
+
+StmBridge::FlipServo rosToStm(cubesat_msgs::msg::FlipServo servo) {
+    switch (servo.id) {
+    case 0:
+        return StmBridge::FlipServo::Servo1;
+    case 1:
+        return StmBridge::FlipServo::Servo2;
+    case 2:
+        return StmBridge::FlipServo::Servo3;
+    }
+    return StmBridge::FlipServo::Servo1;
+}
+
+StmBridgeNode::BridgeMode servoToMode(cubesat_msgs::msg::FlipServo servo) {
+    switch (servo.id) {
+    case 0:
+        return StmBridgeNode::BridgeMode::MovingServo1;
+    case 1:
+        return StmBridgeNode::BridgeMode::MovingServo2;
+    case 2:
+        return StmBridgeNode::BridgeMode::MovingServo3;
+    }
+    return StmBridgeNode::BridgeMode::Idle;
+}
+
+void StmBridgeNode::handle_flip_accepted(const std::shared_ptr<GoalHandleFlipServo> goal_handle) {
+    using namespace std::placeholders;
+    const FlipServoAction::Goal goal = *goal_handle->get_goal();
+    const StmBridge::FlipServoMotion motion{
+        .open_duration = goal.open_duration,
+        .openness = goal.openness,
+        .open_travel_duration = goal.open_travel_duration,
+        .closedness = goal.closedness,
+        .close_travel_duration = goal.close_travel_duration,
+    };
+    crashout.setServoMotion(rosToStm(goal.servo_id), motion);
+    active_mode = servoToMode(goal.servo_id);
+    flip_servo_action_handle = goal_handle;
+
+    crashout.startServoMovement(rosToStm(goal.servo_id));
+
+    flip_start_time = now();
+    // 30 ms to see response
+    flip_should_show_progress_time = flip_start_time + rclcpp::Duration(0, 30 * 1000 * 1000);
+    // timeout if its > 2x the amount of time we expect
+    uint32_t duration_ms = motion.total_duration() * 10;
+    uint64_t duration_ns = ((uint64_t)duration_ms * 1000 * 1000) * 2;
+    flip_timeout_time = flip_start_time + rclcpp::Duration(duration_ns / 1000000000, duration_ns % 1000000000);
+    RCLCPP_INFO(get_logger(), "Timeout %lld ns. Starting at %lld, waiting for %lld, timeout at %lld", duration_ns,
+                flip_start_time.nanoseconds(), flip_should_show_progress_time.nanoseconds(),
+                flip_timeout_time.nanoseconds());
+    // this needs to return quickly to avoid blocking the executor, so spin up a new thread
+    // std::thread{std::bind(&FibonacciActionServer::execute, this, _1), goal_handle}.detach();
+    // tell stm and tell it to go
 }
 
 } // namespace cubesat_stm_bridge

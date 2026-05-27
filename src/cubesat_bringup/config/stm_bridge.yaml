@@ -5,4 +5,4 @@ stm_bridge_node:
     spi_device: "/dev/spidev0.0"
     spi_freq_hz: 4000000
 
-    status_poll_hz: 50
+    status_poll_hz: 100.0

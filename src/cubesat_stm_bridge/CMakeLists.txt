@@ -10,6 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_action REQUIRED)
 find_package(cubesat_msgs REQUIRED)
 
 add_executable(stm_bridge_node
@@ -21,7 +22,7 @@ add_executable(stm_bridge_node
 target_include_directories(stm_bridge_node PRIVATE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
-ament_target_dependencies(stm_bridge_node rclcpp cubesat_msgs)
+ament_target_dependencies(stm_bridge_node rclcpp rclcpp_action cubesat_msgs)
 
 install(TARGETS stm_bridge_node
   DESTINATION lib/${PROJECT_NAME}

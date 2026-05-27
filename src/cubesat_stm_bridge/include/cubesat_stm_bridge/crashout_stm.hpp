@@ -36,6 +36,7 @@ class CrashoutSTM {
     void setArmTarget(const ArmPose &pose);
     void startArmMovement();
     void startServoMovement(FlipServo servoid);
+    void stopMovement();
     void setServoMotion(FlipServo servoid, FlipServoMotion motion);
 
   private:
