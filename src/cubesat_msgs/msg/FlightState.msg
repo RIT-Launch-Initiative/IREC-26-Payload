@@ -1,4 +1,10 @@
 builtin_interfaces/Time stamp
 uint8 state
-bool fault
-string fault_reason
+uint8 STATE_PAD = 0
+uint8 STATE_PREBOOST = 1
+uint8 STATE_FLIGHT = 2
+uint8 STATE_FLIPPING = 3
+uint8 STATE_UNFOLDING = 4
+uint8 STATE_AUTO_CAMERA = 5
+uint8 STATE_MANUAL_CONTROL = 6 
+uint8 STATE_EMERGENCY = 7

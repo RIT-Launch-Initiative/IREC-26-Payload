@@ -9,9 +9,10 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
     bringup_pkg = get_package_share_directory("cubesat_bringup")
     pi_io_pkg = get_package_share_directory("cubesat_pi_io")
+    stm_bridge_pkg = get_package_share_directory("cubesat_stm_bridge")
 
     pi_io_cfg = os.path.join(pi_io_pkg, "config", "pi_io.yaml")
-    stm_bridge_cfg = os.path.join(bringup_pkg, "config", "stm_bridge.yaml")
+    stm_bridge_cfg = os.path.join(stm_bridge_pkg, "config", "stm_bridge.yaml")
     radio_cfg = os.path.join(bringup_pkg, "config", "radio.yaml")
     vision_cfg = os.path.join(bringup_pkg, "config", "vision.yaml")
 
@@ -43,15 +44,15 @@ def generate_launch_description():
     #     arguments=["--ros-args", "--log-level", "WARN"],
     # )
 
-    # stm_bridge = Node(
-    #     package="cubesat_stm_bridge",
-    #     executable="stm_bridge_node",
-    #     name="stm_bridge_node",
-    #     parameters=[stm_bridge_cfg, shared],
-    #     respawn=True,
-    #     respawn_delay=2.0,
-    #     arguments=["--ros-args", "--log-level", "WARN"],
-    # )
+    stm_bridge = Node(
+        package="cubesat_stm_bridge",
+        executable="stm_bridge_node",
+        name="stm_bridge_node",
+        parameters=[stm_bridge_cfg, shared],
+        respawn=True,
+        respawn_delay=2.0,
+        arguments=["--ros-args", "--log-level", "WARN"],
+    )
 
     # control = Node(
     #     package="cubesat_control",
@@ -88,7 +89,7 @@ def generate_launch_description():
             flight_dir_arg,
             pi_io,
             # flight_manager,
-            # stm_bridge,
+            stm_bridge,
             # control,
             # radio,
             # vision,

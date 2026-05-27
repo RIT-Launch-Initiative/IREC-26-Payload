@@ -161,7 +161,7 @@ EOF
 build_deploy_workspace() {
     local docker_platform="$1"
 
-    rm -rf "${DEPLOY_BUILD_BASE}" "${DEPLOY_INSTALL_BASE}" "${DEPLOY_LOG_BASE}"
+    # rm -rf "${DEPLOY_BUILD_BASE}" "${DEPLOY_INSTALL_BASE}" "${DEPLOY_LOG_BASE}"
 
     docker buildx build \
         --builder "${DEPLOY_BUILDER}" \
@@ -189,7 +189,7 @@ build_deploy_workspace() {
                 --install-base ${DEPLOY_INSTALL_BASE} \
                 --merge-install \
                 --event-handlers console_cohesion+ \
-                --cmake-args -G Ninja
+                --cmake-args -G Ninja -DCMAKE_POLICY_DEFAULT_CMP0148=OLD;
         "
 }
 
