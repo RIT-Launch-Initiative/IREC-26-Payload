@@ -190,7 +190,7 @@ build_deploy_workspace() {
                 --install-base ${DEPLOY_INSTALL_BASE} \
                 --merge-install \
                 --event-handlers console_cohesion+ \
-                --cmake-args -G Ninja
+                --cmake-args -G Ninja -DCMAKE_POLICY_DEFAULT_CMP0148=OLD
         "
 }
 
