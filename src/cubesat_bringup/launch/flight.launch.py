@@ -9,7 +9,8 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
     bringup_pkg = get_package_share_directory("cubesat_bringup")
     pi_io_pkg = get_package_share_directory("cubesat_pi_io")
-    stm_bridge_pkg = get_package_share_directory("cubesat_stm_bridge")
+
+    captain_cfg = os.path.join(bringup_pkg, "config", "captain.yaml")
 
     pi_io_cfg = os.path.join(pi_io_pkg, "config", "pi_io.yaml")
     stm_bridge_cfg = os.path.join(bringup_pkg, "config", "stm_bridge.yaml")
@@ -34,15 +35,15 @@ def generate_launch_description():
         arguments=["--ros-args", "--log-level", "WARN"],
     )
 
-    # flight_manager = Node(
-    #     package="cubesat_flight",
-    #     executable="flight_manager_node",
-    #     name="flight_manager_node",
-    #     parameters=[shared],
-    #     respawn=True,
-    #     respawn_delay=2.0,
-    #     arguments=["--ros-args", "--log-level", "WARN"],
-    # )
+    captain = Node(
+        package="cubesat_captain",
+        executable="captain_node",
+        name="captain_node",
+        parameters=[captain_cfg, shared],
+        respawn=True,
+        respawn_delay=2.0,
+        arguments=["--ros-args", "--log-level", "INFO"],
+    )
 
     stm_bridge = Node(
         package="cubesat_stm_bridge",
@@ -88,7 +89,7 @@ def generate_launch_description():
         [
             flight_dir_arg,
             pi_io,
-            # flight_manager,
+            captain,
             stm_bridge,
             # control,
             radio,

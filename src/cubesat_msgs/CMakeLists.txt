@@ -26,6 +26,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/SendRadioPacket.srv"
   "srv/GetImageBlock.srv"
   "srv/HoldShut.srv"
+  "srv/RequestStateChange.srv"
   # Actions
   "action/FlipVehicle.action"
   "action/FlipServoAction.action"
