@@ -1,4 +1,6 @@
 #include "cubesat_captain/captain_node.hpp"
+#include "cubesat_captain/flipping_state.hpp"
+#include "cubesat_captain/pad_state.hpp"
 
 #include <chrono>
 #include <filesystem>
@@ -20,16 +22,11 @@ std::chrono::nanoseconds periodFromHz(double hz) {
 
 CaptainNode::CaptainNode(const rclcpp::NodeOptions &options) : rclcpp::Node("captain_node", options) {
     flight_dir = declare_parameter<std::string>("flight_dir", "~/unconfigured_flight_dir");
-    flight_time_s = declare_parameter<double>("flight_time_s", 100);
-    pad_heartbeat_s = declare_parameter<double>("pad_heartbeat_s", 0.05);
-    flight_heartbeat_s = declare_parameter<double>("flight_heartbeat_s", 0.2);
-    landed_heartbeat_s = declare_parameter<double>("landed_heartbeat_s", 0.2);
+    load_startup_parameters();
 
-    boost_threshold_mps2 = declare_parameter<double>("boost_threshold_mps2", 7);
-
-    RCLCPP_INFO(get_logger(), "Captain Node started: Flight Time: %f", flight_time_s);
-    RCLCPP_INFO(get_logger(), "Pad HB: %f s, Flight HB %f s, Landed HB %f s", pad_heartbeat_s, flight_heartbeat_s,
-                landed_heartbeat_s);
+    RCLCPP_INFO(get_logger(), "Captain Node started: Flight Time: %f", status.current_parameters.flight_time_s);
+    RCLCPP_INFO(get_logger(), "Pad HB: %f s, Flight HB %f s, Landed HB %f s", status.current_parameters.pad_heartbeat_s,
+                status.current_parameters.flight_heartbeat_s, status.current_parameters.landed_heartbeat_s);
 
     if (!std::filesystem::exists(flight_dir)) {
         RCLCPP_ERROR(get_logger(), "flight_dir doesnt exist. Creating");
@@ -40,17 +37,25 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options) : rclcpp::Node("cap
     }
 
     state_pub = create_publisher<cubesat_msgs::msg::FlightState>("pi/flight_state", 10);
-    txPacketSub = create_subscription<cubesat_msgs::msg::AccelSample>(
-      "pi/lis3dh", 10,
-      std::bind(&CaptainNode::handleImu, this, std::placeholders::_1));
+    imu_sub = create_subscription<cubesat_msgs::msg::AccelSample>(
+        "pi/lis3dh", 10, std::bind(&CaptainNode::handle_imu, this, std::placeholders::_1));
 
+    enter_flipping();
+}
+
+void CaptainNode::load_startup_parameters() {
+    status.current_parameters.flight_time_s = declare_parameter<double>("flight_time_s", 100);
+    status.current_parameters.pad_heartbeat_s = declare_parameter<double>("pad_heartbeat_s", 0.05);
+    status.current_parameters.flight_heartbeat_s = declare_parameter<double>("flight_heartbeat_s", 0.2);
+    status.current_parameters.landed_heartbeat_s = declare_parameter<double>("landed_heartbeat_s", 0.2);
+    status.current_parameters.boost_threshold_mps2 = declare_parameter<double>("boost_threshold_mps2", 7);
 }
 
 void CaptainNode::change_internal_state(State state) {
-    current_state = state;
     cubesat_msgs::msg::FlightState msg;
     msg.stamp = now();
     msg.state = (uint8_t)state;
+    status.update_flight_state(msg);
     state_pub->publish(msg);
 }
 void CaptainNode::enter_pad() {
@@ -74,6 +79,38 @@ void CaptainNode::flag_for_new_flight_dir() { std::ofstream(flight_dir + "/new_d
 
 void CaptainNode::restart_system() {
     RCLCPP_WARN(get_logger(), "Restarting self (except not actually bc not implemented)");
+}
+
+void CaptainNode::handle_imu(const cubesat_msgs::msg::AccelSample::SharedPtr sample) {
+    status.update_base_accel(*sample);
+    switch (status.active_state()) {
+    case State::Pad:
+        pad::feed_boost_detect(*sample, status.current_parameters.boost_threshold_mps2);
+        if (pad::has_boosted()) {
+            enter_flight();
+        }
+        break;
+    case State::Preboost:
+        pad::feed_boost_detect(*sample, status.current_parameters.boost_threshold_mps2);
+        if (pad::has_boosted()) {
+            enter_flight();
+        }
+        break;
+    case State::Flight:
+        break;
+    case State::Flipping: {
+        flipping::FaceAndConfidence face = flipping::which_side(*sample);
+        RCLCPP_INFO(get_logger(), "On Face %d with confidence %f", face.side, face.confidence);
+    } break;
+    case State::Unfolding:
+        break;
+    case State::AutoCamera:
+        break;
+    case State::ManualControl:
+        break;
+    case State::Emergency:
+        break;
+    };
 }
 
 } // namespace cubesat_captain

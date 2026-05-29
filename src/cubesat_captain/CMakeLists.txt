@@ -18,6 +18,7 @@ add_executable(captain_node
   src/captain_node.cpp
   src/pad_state.cpp
   src/flipping_state.cpp
+  src/status_accumulator.cpp
 )
 
 target_include_directories(captain_node PRIVATE

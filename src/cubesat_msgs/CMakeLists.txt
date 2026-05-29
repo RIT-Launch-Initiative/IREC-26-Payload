@@ -18,6 +18,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ArmState.msg"
   "msg/FlipServo.msg"
   "msg/PayloadOrientation.msg"
+  "msg/TelemetryType.msg"
   # Services
   "srv/StartNewFlight.srv"
   "srv/SetFlightFolder.srv"
@@ -27,6 +28,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/GetImageBlock.srv"
   "srv/HoldShut.srv"
   "srv/RequestStateChange.srv"
+  "srv/TelemetryRequest.srv"
   # Actions
   "action/FlipVehicle.action"
   "action/FlipServoAction.action"
