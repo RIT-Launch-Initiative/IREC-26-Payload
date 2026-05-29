@@ -3,7 +3,7 @@
 #include "cubesat_msgs/msg/accel_sample.hpp"
 #include <array>
 
-namespace flipping {
+namespace cubesat_captain {
 using AccelSample = cubesat_msgs::msg::AccelSample;
 using Orientation = cubesat_msgs::msg::PayloadOrientation;
 
@@ -46,16 +46,17 @@ std::array<FaceAndVector, 6> faces{
     // clang-format on
 };
 
-FaceAndConfidence which_side(const cubesat_msgs::msg::AccelSample &sample){
+FaceAndConfidence FlippingExpert::which_side(const cubesat_msgs::msg::AccelSample &sample) {
     auto norm_sample = normalize_accel(sample);
     std::array<FaceAndConfidence, 6> confidence{};
-    for (size_t i = 0; i < 6; i++){
+    for (size_t i = 0; i < 6; i++) {
         confidence[i] = faces[i].to_confidence(norm_sample);
     }
 
-    std::sort(confidence.begin(), confidence.end(), [](FaceAndConfidence a, FaceAndConfidence b){return a.confidence < b.confidence;});
+    std::sort(confidence.begin(), confidence.end(),
+              [](FaceAndConfidence a, FaceAndConfidence b) { return a.confidence < b.confidence; });
 
     return confidence[5];
 }
 
-} // namespace flipping
+} // namespace cubesat_captain

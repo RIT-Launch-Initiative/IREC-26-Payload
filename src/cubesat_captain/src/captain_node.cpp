@@ -11,16 +11,17 @@ namespace cubesat_captain {
 
 namespace {
 
-std::chrono::nanoseconds periodFromHz(double hz) {
-    if (hz <= 0.0) {
-        return std::chrono::seconds(1);
-    }
-    return std::chrono::nanoseconds(static_cast<int64_t>(1e9 / hz));
-}
+// std::chrono::nanoseconds periodFromHz(double hz) {
+//     if (hz <= 0.0) {
+//         return std::chrono::seconds(1);
+//     }
+//     return std::chrono::nanoseconds(static_cast<int64_t>(1e9 / hz));
+// }
 
 } // namespace
 
-CaptainNode::CaptainNode(const rclcpp::NodeOptions &options) : rclcpp::Node("captain_node", options) {
+CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
+    : rclcpp::Node("captain_node", options), status{}, levers{status} {
     flight_dir = declare_parameter<std::string>("flight_dir", "~/unconfigured_flight_dir");
     load_startup_parameters();
 
@@ -40,7 +41,38 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options) : rclcpp::Node("cap
     imu_sub = create_subscription<cubesat_msgs::msg::AccelSample>(
         "pi/lis3dh", 10, std::bind(&CaptainNode::handle_imu, this, std::placeholders::_1));
 
-    enter_flipping();
+    this->request_state_change_service = create_service<cubesat_msgs::srv::RequestStateChange>(
+        "/pi/change_state",
+        std::bind(&CaptainNode::requestStateChange, this, std::placeholders::_1, std::placeholders::_2));
+
+    experts[(int)State::Pad] = new PadExpert(get_logger(), levers);
+    experts[(int)State::Flipping] = new FlippingExpert(get_logger(), levers);
+
+    // enter initial state
+    State initial_state = State::Pad;
+
+    cubesat_msgs::msg::FlightState msg;
+    msg.stamp = now();
+    msg.state = (uint8_t)initial_state;
+    status.update_flight_state(msg);
+    state_pub->publish(msg);
+
+    Expert *expert = expert_for_state(initial_state);
+    if (expert != nullptr) {
+        expert->enter_state();
+    }
+}
+
+void CaptainNode::requestStateChange(const std::shared_ptr<cubesat_msgs::srv::RequestStateChange::Request> request,
+                                     std::shared_ptr<cubesat_msgs::srv::RequestStateChange::Response> response) {
+    State to_state = (State)request->to_state.state;
+    if (to_state >= State::NumStates){
+        response->success = true;
+        response->reason = "invalid state";
+        return;
+    }
+    response->success = true;
+    change_internal_state(to_state);
 }
 
 void CaptainNode::load_startup_parameters() {
@@ -52,28 +84,39 @@ void CaptainNode::load_startup_parameters() {
 }
 
 void CaptainNode::change_internal_state(State state) {
+    State old_state = status.active_state();
+    Expert *old_expert = expert_for_state(state);
+    if (old_expert != nullptr) {
+        old_expert->exit_state();
+    }
+
     cubesat_msgs::msg::FlightState msg;
     msg.stamp = now();
     msg.state = (uint8_t)state;
     status.update_flight_state(msg);
     state_pub->publish(msg);
+
+    Expert *expert = expert_for_state(state);
+    if (expert != nullptr) {
+        expert->enter_state();
+    }
 }
-void CaptainNode::enter_pad() {
-    change_internal_state(State::Pad);
-    RCLCPP_INFO(get_logger(), "In Pad State");
-}
-void CaptainNode::enter_preboost() {
-    change_internal_state(State::Preboost);
-    RCLCPP_INFO(get_logger(), "In Preboost State");
-    // turn on cameras
-    // start timer for return to pad (maybe)
-}
-void CaptainNode::enter_flight() { change_internal_state(State::Flight); }
-void CaptainNode::enter_flipping() { change_internal_state(State::Flipping); }
-void CaptainNode::enter_unfolding() { change_internal_state(State::Unfolding); }
-void CaptainNode::enter_auto_camera() { change_internal_state(State::AutoCamera); }
-void CaptainNode::enter_manual() { change_internal_state(State::ManualControl); }
-void CaptainNode::enter_emergency() { change_internal_state(State::Emergency); }
+// void CaptainNode::enter_pad() {
+//     change_internal_state(State::Pad);
+//     RCLCPP_INFO(get_logger(), "In Pad State");
+// }
+// void CaptainNode::enter_preboost() {
+//     change_internal_state(State::Preboost);
+//     RCLCPP_INFO(get_logger(), "In Preboost State");
+//     // turn on cameras
+//     // start timer for return to pad (maybe)
+// }
+// void CaptainNode::enter_flight() { change_internal_state(State::Flight); }
+// void CaptainNode::enter_flipping() { change_internal_state(State::Flipping); }
+// void CaptainNode::enter_unfolding() { change_internal_state(State::Unfolding); }
+// void CaptainNode::enter_auto_camera() { change_internal_state(State::AutoCamera); }
+// void CaptainNode::enter_manual() { change_internal_state(State::ManualControl); }
+// void CaptainNode::enter_emergency() { change_internal_state(State::Emergency); }
 
 void CaptainNode::flag_for_new_flight_dir() { std::ofstream(flight_dir + "/new_dir_please.flag").close(); }
 
@@ -83,34 +126,43 @@ void CaptainNode::restart_system() {
 
 void CaptainNode::handle_imu(const cubesat_msgs::msg::AccelSample::SharedPtr sample) {
     status.update_base_accel(*sample);
-    switch (status.active_state()) {
-    case State::Pad:
-        pad::feed_boost_detect(*sample, status.current_parameters.boost_threshold_mps2);
-        if (pad::has_boosted()) {
-            enter_flight();
-        }
-        break;
-    case State::Preboost:
-        pad::feed_boost_detect(*sample, status.current_parameters.boost_threshold_mps2);
-        if (pad::has_boosted()) {
-            enter_flight();
-        }
-        break;
-    case State::Flight:
-        break;
-    case State::Flipping: {
-        flipping::FaceAndConfidence face = flipping::which_side(*sample);
-        RCLCPP_INFO(get_logger(), "On Face %d with confidence %f", face.side, face.confidence);
-    } break;
-    case State::Unfolding:
-        break;
-    case State::AutoCamera:
-        break;
-    case State::ManualControl:
-        break;
-    case State::Emergency:
-        break;
-    };
+    Expert *expert = expert_for_state(status.active_state());
+    if (expert != nullptr) {
+        expert->handle_base_accel(*sample);
+    }
+
+    // switch (status.active_state()) {
+    // case State::Pad:
+    //     pad::feed_boost_detect(*sample, status.current_parameters.boost_threshold_mps2);
+    //     if (pad::has_boosted()) {
+    //         enter_flight();
+    //     }
+    //     break;
+    // case State::Preboost:
+    //     pad::feed_boost_detect(*sample, status.current_parameters.boost_threshold_mps2);
+    //     if (pad::has_boosted()) {
+    //         enter_flight();
+    //     }
+    //     break;
+    // case State::Flight:
+    //     break;
+    // case State::Flipping: {
+    // } break;
+    // case State::Unfolding:
+    //     break;
+    // case State::AutoCamera:
+    //     break;
+    // case State::ManualControl:
+    //     break;
+    // case State::Emergency:
+    //     break;
+    // };
 }
 
+Expert *CaptainNode::expert_for_state(State state) {
+    if (state > State::NumStates) {
+        return nullptr;
+    }
+    return experts[(int)state];
+}
 } // namespace cubesat_captain

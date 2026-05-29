@@ -1,3 +1,4 @@
+#pragma once
 #include "cubesat_msgs/msg/arm_status.hpp"
 #include "cubesat_msgs/msg/flight_state.hpp"
 #include "cubesat_msgs/msg/gps_sample.hpp"
@@ -23,6 +24,7 @@ enum class State {
     AutoCamera = cubesat_msgs::msg::FlightState::STATE_AUTO_CAMERA,
     ManualControl = cubesat_msgs::msg::FlightState::STATE_MANUAL_CONTROL,
     Emergency = cubesat_msgs::msg::FlightState::STATE_EMERGENCY,
+    NumStates = 8,
 };
 
 class StatusAccumulator {

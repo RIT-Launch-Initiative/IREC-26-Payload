@@ -1,22 +1,17 @@
 #include "cubesat_captain/pad_state.hpp"
 #include "cubesat_captain/common.hpp"
-namespace pad {
 
-static bool has_boosted_ = false;
+namespace cubesat_captain {
 
-// at 50 hz, 12 samples = 0.24 seconds
-CMovingAverage<double, 12> avger{0.0};
+void PadExpert::handle_base_accel(const cubesat_msgs::msg::AccelSample &sample) {
 
-void feed_boost_detect(const cubesat_msgs::msg::AccelSample &sample, double threshold) {
     double mag = accel_magnitude(sample);
     avger.Feed(mag);
 
-    has_boosted_ |= (avger.Avg() > threshold);
+    has_boosted_ |= (avger.Avg() > levers.status.current_parameters.boost_threshold_mps2);
 }
-bool has_boosted() { return has_boosted_; }
-void fake_boost_detect() { has_boosted_ |= true; }
 
-} // namespace pad
+} // namespace cubesat_captain
 
 double accel_magnitude(const cubesat_msgs::msg::AccelSample &sample) {
     double mag_sqred = sample.ax * sample.ax + sample.ay * sample.ay + sample.az * sample.az;

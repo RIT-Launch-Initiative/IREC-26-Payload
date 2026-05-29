@@ -1,10 +1,7 @@
 #pragma once
+#include "cubesat_captain/expert.hpp"
 #include "cubesat_msgs/msg/accel_sample.hpp"
-namespace pad {
-void feed_boost_detect(const cubesat_msgs::msg::AccelSample &sample, double threshold);
-bool has_boosted();
-void fake_boost_detect();
-} // namespace pad
+
 template <typename ValueT, std::size_t Length> class CCircularBuffer {
   public:
     using value_type = ValueT;
@@ -90,3 +87,21 @@ template <typename T, std::size_t len> class CMovingAverage {
   private:
     CRollingSum<value_type, len> rolling_sum;
 };
+
+double accel_magnitude(const cubesat_msgs::msg::AccelSample &sample);
+cubesat_msgs::msg::AccelSample normalize_accel(const cubesat_msgs::msg::AccelSample &sample);
+
+namespace cubesat_captain {
+class PadExpert : public Expert {
+  public:
+    PadExpert(rclcpp::Logger logger, Levers &levers) : Expert(logger, levers) {}
+    ~PadExpert() {}
+    void handle_base_accel(const cubesat_msgs::msg::AccelSample &sample) override;
+
+  private:
+    bool has_boosted_ = false;
+    // at 50 hz, 12 samples = 0.24 seconds
+    CMovingAverage<double, 12> avger{0.0};
+};
+
+} // namespace cubesat_captain
