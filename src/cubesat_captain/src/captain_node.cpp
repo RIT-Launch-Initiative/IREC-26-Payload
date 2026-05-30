@@ -31,6 +31,9 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     RCLCPP_INFO(get_logger(), "Pad HB: %f s, Flight HB %f s, Landed HB %f s", status.current_parameters.pad_heartbeat_s,
                 status.current_parameters.flight_heartbeat_s, status.current_parameters.landed_heartbeat_s);
 
+    RCLCPP_INFO(get_logger(), "Battery Low %.2f V, Dangerous %.2f", status.current_parameters.warn_battery_threshold_v, status.current_parameters.danger_battery_threshold_v);
+
+
     if (!std::filesystem::exists(flight_dir)) {
         RCLCPP_ERROR(get_logger(), "flight_dir doesnt exist. Creating");
         std::filesystem::create_directory(flight_dir);
@@ -43,9 +46,14 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     imu_sub = create_subscription<cubesat_msgs::msg::AccelSample>(
         "pi/lis3dh", 10, std::bind(&CaptainNode::handle_imu, this, std::placeholders::_1));
 
+    power_sub = create_subscription<cubesat_msgs::msg::PowerSample>(
+        "pi/power", 10, std::bind(&CaptainNode::handle_power, this, std::placeholders::_1));
+
     this->request_state_change_service = create_service<cubesat_msgs::srv::RequestStateChange>(
         "/pi/change_state",
         std::bind(&CaptainNode::requestStateChange, this, std::placeholders::_1, std::placeholders::_2));
+
+    this->set_buzzer_client = create_client<cubesat_msgs::srv::SetBuzzer>("/pi/buzzer");
 
     experts[(int)State::Pad] = new PadExpert(get_logger(), levers);
     experts[(int)State::Flipping] = new FlippingExpert(get_logger(), levers);
@@ -83,6 +91,10 @@ void CaptainNode::load_startup_parameters() {
     status.current_parameters.flight_heartbeat_s = declare_parameter<double>("flight_heartbeat_s", 0.2);
     status.current_parameters.landed_heartbeat_s = declare_parameter<double>("landed_heartbeat_s", 0.2);
     status.current_parameters.boost_threshold_mps2 = declare_parameter<double>("boost_threshold_mps2", 7);
+
+    status.current_parameters.warn_battery_threshold_v = declare_parameter<double>("warn_battery_threshold_v", 10.75);
+    status.current_parameters.danger_battery_threshold_v =
+        declare_parameter<double>("danger_battery_threshold_v", 10.5);
 }
 
 void CaptainNode::change_internal_state(State state) {
@@ -103,22 +115,6 @@ void CaptainNode::change_internal_state(State state) {
         expert->enter_state();
     }
 }
-// void CaptainNode::enter_pad() {
-//     change_internal_state(State::Pad);
-//     RCLCPP_INFO(get_logger(), "In Pad State");
-// }
-// void CaptainNode::enter_preboost() {
-//     change_internal_state(State::Preboost);
-//     RCLCPP_INFO(get_logger(), "In Preboost State");
-//     // turn on cameras
-//     // start timer for return to pad (maybe)
-// }
-// void CaptainNode::enter_flight() { change_internal_state(State::Flight); }
-// void CaptainNode::enter_flipping() { change_internal_state(State::Flipping); }
-// void CaptainNode::enter_unfolding() { change_internal_state(State::Unfolding); }
-// void CaptainNode::enter_auto_camera() { change_internal_state(State::AutoCamera); }
-// void CaptainNode::enter_manual() { change_internal_state(State::ManualControl); }
-// void CaptainNode::enter_emergency() { change_internal_state(State::Emergency); }
 
 void CaptainNode::flag_for_new_flight_dir() { std::ofstream(flight_dir + "/new_dir_please.flag").close(); }
 
@@ -128,10 +124,41 @@ void CaptainNode::restart_system() {
 
 void CaptainNode::handle_imu(const cubesat_msgs::msg::AccelSample::SharedPtr sample) {
     status.update_base_accel(*sample);
+
     Expert *expert = expert_for_state(status.active_state());
     if (expert != nullptr) {
         expert->handle_base_accel(*sample);
     }
+}
+
+void CaptainNode::handle_power(const cubesat_msgs::msg::PowerSample::SharedPtr sample) {
+    status.update_power_sample(*sample);
+
+    bool battery_low = sample->bus_voltage_v < status.current_parameters.warn_battery_threshold_v;
+    bool battery_dangerous = sample->bus_voltage_v < status.current_parameters.danger_battery_threshold_v;
+
+    Expert *expert = expert_for_state(status.active_state());
+
+    if (expert != nullptr) {
+        expert->handle_power_sample(*sample);
+    }
+
+    // send to buzzer (we don't actually care if it gets there so don't spin for result)
+    auto request = std::make_shared<cubesat_msgs::srv::SetBuzzer::Request>();
+    if (battery_low && !was_battery_low) {
+        RCLCPP_WARN(get_logger(), "BATTERY LOW");
+        request->repeat_count = 100;
+        request->beep_code = cubesat_msgs::srv::SetBuzzer::Request::BEEP_CODE_3_EQUAL;
+        set_buzzer_client->async_send_request(request);
+    }
+    if (battery_dangerous && !was_battery_dangerous) {
+        RCLCPP_WARN(get_logger(), "BATTERY DANGEROUSLY LOW");
+        request->repeat_count = 10;
+        request->beep_code = cubesat_msgs::srv::SetBuzzer::Request::BEEP_CODE_SMALL;
+        set_buzzer_client->async_send_request(request);
+    }
+    was_battery_low = battery_low;
+    was_battery_dangerous = battery_dangerous;
 }
 
 Expert *CaptainNode::expert_for_state(State state) {

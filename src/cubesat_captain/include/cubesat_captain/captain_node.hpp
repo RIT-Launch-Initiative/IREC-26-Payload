@@ -3,8 +3,10 @@
 #include "cubesat_captain/status_accumulator.hpp"
 #include "cubesat_msgs/msg/accel_sample.hpp"
 #include "cubesat_msgs/msg/flight_state.hpp"
+#include "cubesat_msgs/msg/power_sample.hpp"
 #include "cubesat_msgs/msg/telemetry_type.hpp"
 #include "cubesat_msgs/srv/request_state_change.hpp"
+#include "cubesat_msgs/srv/set_buzzer.hpp"
 #include "cubesat_msgs/srv/telemetry_request.hpp"
 
 #include "rclcpp_action/rclcpp_action.hpp"
@@ -42,6 +44,7 @@ class CaptainNode : public rclcpp::Node {
     void emit_telemetry(cubesat_msgs::msg::TelemetryType telem_type);
 
     void handle_imu(const cubesat_msgs::msg::AccelSample::SharedPtr sample);
+    void handle_power(const cubesat_msgs::msg::PowerSample::SharedPtr sample);
 
     StatusAccumulator status;
     Levers levers;
@@ -49,11 +52,20 @@ class CaptainNode : public rclcpp::Node {
 
     std::string flight_dir;
 
+    bool was_battery_dangerous{false};
+    bool was_battery_low{false};
+
     rclcpp::Subscription<cubesat_msgs::msg::AccelSample>::SharedPtr imu_sub;
+    rclcpp::Subscription<cubesat_msgs::msg::PowerSample>::SharedPtr power_sub;
+
     rclcpp::Publisher<cubesat_msgs::msg::FlightState>::SharedPtr state_pub;
 
+    // services that we are the server for
     rclcpp::Service<cubesat_msgs::srv::RequestStateChange>::SharedPtr request_state_change_service;
     rclcpp::Service<cubesat_msgs::srv::TelemetryRequest>::SharedPtr request_telemetry;
+
+    // services that we are the client for
+    rclcpp::Client<cubesat_msgs::srv::SetBuzzer>::SharedPtr set_buzzer_client;
 };
 
 } // namespace cubesat_captain

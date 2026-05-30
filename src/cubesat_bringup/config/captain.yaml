@@ -7,3 +7,7 @@
     landed_heartbeat_s: 5.0 # 1 per 5 seconds
 
     boost_threshold_mps2: 7.0
+
+
+    warn_battery_threshold_v: 10.75
+    danger_battery_threshold_v: 10.5

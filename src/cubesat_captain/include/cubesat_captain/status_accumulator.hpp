@@ -13,6 +13,9 @@ struct Parameters {
     double flight_heartbeat_s;
     double landed_heartbeat_s;
     double boost_threshold_mps2;
+
+    double warn_battery_threshold_v;
+    double danger_battery_threshold_v;
 };
 
 enum class State {
@@ -40,13 +43,13 @@ class StatusAccumulator {
 
     Parameters current_parameters;
 
-    cubesat_msgs::msg::FlightState current_state;
-    cubesat_msgs::msg::GpsSample last_gps_sample;
-    cubesat_msgs::msg::GpsSample last_good_gps_sample;
-    cubesat_msgs::msg::ArmStatus last_arm_status;
-    cubesat_msgs::msg::PowerSample last_power_sample;
+    cubesat_msgs::msg::FlightState current_state{};
+    cubesat_msgs::msg::GpsSample last_gps_sample{};
+    cubesat_msgs::msg::GpsSample last_good_gps_sample{};
+    cubesat_msgs::msg::ArmStatus last_arm_status{};
+    cubesat_msgs::msg::PowerSample last_power_sample{};
 
-    cubesat_msgs::msg::AccelSample last_base_accel;
+    cubesat_msgs::msg::AccelSample last_base_accel{};
 
   private:
 };

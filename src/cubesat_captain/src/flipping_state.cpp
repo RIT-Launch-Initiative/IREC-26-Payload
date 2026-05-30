@@ -115,17 +115,15 @@ void FlippingExpert::enter_state() {
     start_flip(servo);
 }
 
-void FlippingExpert::flip_response_cb(GoalHandleFlipServoAction::SharedPtr future) {
+void FlippingExpert::flip_response_cb(GoalHandleFlipServoAction::SharedPtr) {
     RCLCPP_INFO(logger, "Response CB");
 }
-void FlippingExpert::flip_result_cb(const GoalHandleFlipServoAction::WrappedResult &result) {
+void FlippingExpert::flip_result_cb(const GoalHandleFlipServoAction::WrappedResult &) {
     RCLCPP_INFO(logger, "Result CB");
     flip_finish();
     RCLCPP_INFO(logger, "Post Finish");
 }
 void FlippingExpert::flip_feedback_cb(GoalHandleFlipServoAction::SharedPtr,
-                                      const std::shared_ptr<const FlipServoAction::Feedback> feedback) {
-    RCLCPP_INFO(logger, "Feedbakc CB");
-}
+                                      const std::shared_ptr<const FlipServoAction::Feedback> feedback) {}
 
 } // namespace cubesat_captain

@@ -17,3 +17,8 @@ pi_io_node:
       sample_rate_hz: 100
       range_g: 16
       poll_hz: 50.0
+
+    buzzer:
+      period_ms: 100
+      gpio_chip: "gpiochip0"
+      gpio_pin: 17

@@ -29,6 +29,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/HoldShut.srv"
   "srv/RequestStateChange.srv"
   "srv/TelemetryRequest.srv"
+  "srv/SetBuzzer.srv"
   # Actions
   "action/FlipVehicle.action"
   "action/FlipServoAction.action"
