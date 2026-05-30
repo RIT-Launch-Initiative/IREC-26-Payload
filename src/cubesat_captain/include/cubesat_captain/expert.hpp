@@ -1,18 +1,24 @@
 #pragma once
 
 #include "cubesat_captain/status_accumulator.hpp"
+#include "cubesat_msgs/action/flip_servo_action.hpp"
 #include "cubesat_msgs/msg/accel_sample.hpp"
 #include "cubesat_msgs/msg/arm_status.hpp"
 #include "cubesat_msgs/msg/flight_state.hpp"
 #include "cubesat_msgs/msg/gps_sample.hpp"
 #include "cubesat_msgs/msg/power_sample.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
 #include <rclcpp/rclcpp.hpp>
+
+#include <functional>
 
 namespace cubesat_captain {
 struct Levers {
     StatusAccumulator &status;
+
+    rclcpp_action::Client<cubesat_msgs::action::FlipServoAction>::SharedPtr flip_servo_action_client;
     // things an expert can do
-    void goto_state(State state);
+    std::function<void(State state)> goto_state;
 };
 
 class Expert {
@@ -30,7 +36,5 @@ class Expert {
     rclcpp::Logger logger;
     Levers &levers;
 };
-
-
 
 } // namespace cubesat_captain

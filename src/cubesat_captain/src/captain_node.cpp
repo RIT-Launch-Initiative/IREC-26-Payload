@@ -21,7 +21,9 @@ namespace {
 } // namespace
 
 CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
-    : rclcpp::Node("captain_node", options), status{}, levers{status} {
+    : rclcpp::Node("captain_node", options), status{},
+      levers{status, rclcpp_action::create_client<cubesat_msgs::action::FlipServoAction>(this, "/stm/flip_servo"),
+             [this](State state) { this->change_internal_state(state); }} {
     flight_dir = declare_parameter<std::string>("flight_dir", "~/unconfigured_flight_dir");
     load_startup_parameters();
 
@@ -66,7 +68,7 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
 void CaptainNode::requestStateChange(const std::shared_ptr<cubesat_msgs::srv::RequestStateChange::Request> request,
                                      std::shared_ptr<cubesat_msgs::srv::RequestStateChange::Response> response) {
     State to_state = (State)request->to_state.state;
-    if (to_state >= State::NumStates){
+    if (to_state >= State::NumStates) {
         response->success = true;
         response->reason = "invalid state";
         return;
@@ -85,7 +87,7 @@ void CaptainNode::load_startup_parameters() {
 
 void CaptainNode::change_internal_state(State state) {
     State old_state = status.active_state();
-    Expert *old_expert = expert_for_state(state);
+    Expert *old_expert = expert_for_state(old_state);
     if (old_expert != nullptr) {
         old_expert->exit_state();
     }
@@ -130,33 +132,6 @@ void CaptainNode::handle_imu(const cubesat_msgs::msg::AccelSample::SharedPtr sam
     if (expert != nullptr) {
         expert->handle_base_accel(*sample);
     }
-
-    // switch (status.active_state()) {
-    // case State::Pad:
-    //     pad::feed_boost_detect(*sample, status.current_parameters.boost_threshold_mps2);
-    //     if (pad::has_boosted()) {
-    //         enter_flight();
-    //     }
-    //     break;
-    // case State::Preboost:
-    //     pad::feed_boost_detect(*sample, status.current_parameters.boost_threshold_mps2);
-    //     if (pad::has_boosted()) {
-    //         enter_flight();
-    //     }
-    //     break;
-    // case State::Flight:
-    //     break;
-    // case State::Flipping: {
-    // } break;
-    // case State::Unfolding:
-    //     break;
-    // case State::AutoCamera:
-    //     break;
-    // case State::ManualControl:
-    //     break;
-    // case State::Emergency:
-    //     break;
-    // };
 }
 
 Expert *CaptainNode::expert_for_state(State state) {

@@ -1,9 +1,9 @@
 #pragma once
+#include "cubesat_msgs/msg/accel_sample.hpp"
 #include "cubesat_msgs/msg/arm_status.hpp"
 #include "cubesat_msgs/msg/flight_state.hpp"
 #include "cubesat_msgs/msg/gps_sample.hpp"
 #include "cubesat_msgs/msg/power_sample.hpp"
-#include "cubesat_msgs/msg/accel_sample.hpp"
 
 namespace cubesat_captain {
 
@@ -29,7 +29,6 @@ enum class State {
 
 class StatusAccumulator {
   public:
-
     bool load_from_folder();
     void update_base_accel(const cubesat_msgs::msg::AccelSample &sample);
     void update_arm_status(const cubesat_msgs::msg::ArmStatus &status);
@@ -41,7 +40,6 @@ class StatusAccumulator {
 
     Parameters current_parameters;
 
-  private:
     cubesat_msgs::msg::FlightState current_state;
     cubesat_msgs::msg::GpsSample last_gps_sample;
     cubesat_msgs::msg::GpsSample last_good_gps_sample;
@@ -49,6 +47,8 @@ class StatusAccumulator {
     cubesat_msgs::msg::PowerSample last_power_sample;
 
     cubesat_msgs::msg::AccelSample last_base_accel;
+
+  private:
 };
 
 } // namespace cubesat_captain
