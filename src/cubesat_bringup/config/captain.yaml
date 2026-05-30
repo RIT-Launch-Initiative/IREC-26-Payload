@@ -1,0 +1,9 @@
+/**:
+  ros__parameters:
+    flight_time_s: 300.0
+
+    pad_heartbeat_s: 20.0 # 1 per 20 seconds
+    flight_heartbeat_s: 5.0 # 1 per 5 seconds
+    landed_heartbeat_s: 5.0 # 1 per 5 seconds
+
+    boost_threshold_mps2: 7.0

@@ -1,0 +1,4 @@
+FlightState to_state
+---
+bool success
+string reason
