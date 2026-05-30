@@ -32,7 +32,7 @@ def generate_launch_description():
         parameters=[pi_io_cfg, shared],
         respawn=True,
         respawn_delay=2.0,
-        arguments=["--ros-args", "--log-level", "WARN"],
+        arguments=["--ros-args", "--log-level", "INFO"],
     )
 
     captain = Node(

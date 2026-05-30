@@ -13,6 +13,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(cubesat_msgs REQUIRED)
+pkg_check_modules(GPIOD REQUIRED libgpiod)
 
 add_subdirectory(nmea)
 
@@ -20,12 +21,14 @@ add_library(cubesat_pi_io_drivers STATIC
   src/gps_nmea_reader.cpp
   src/ina260_driver.cpp
   src/lis3dh_driver.cpp
+  src/buzzer_driver.cpp
 )
 target_include_directories(cubesat_pi_io_drivers PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
+  ${GPIOD_INCLUDE_DIRS}
 )
-target_link_libraries(cubesat_pi_io_drivers PRIVATE nmea)
+target_link_libraries(cubesat_pi_io_drivers PRIVATE nmea ${GPIOD_LIBRARIES})
 
 add_executable(pi_io_node
   src/main.cpp

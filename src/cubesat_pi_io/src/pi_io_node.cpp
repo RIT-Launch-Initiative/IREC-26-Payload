@@ -36,6 +36,11 @@ PiIoNode::PiIoNode(const rclcpp::NodeOptions &options) : rclcpp::Node("pi_io_nod
     const auto lis_range = declare_parameter<int>("lis3dh.range_g", 16);
     const auto lis_hz = declare_parameter<double>("lis3dh.poll_hz", 50.0);
 
+    // Buzzer
+    const auto buzzer_period_ms = declare_parameter<int>("buzzer.period_ms", 10);
+    const auto buzzer_chip = declare_parameter<std::string>("buzzer.gpio_chip", "/dev/gpiochip0");
+    const auto buzzer_pin = declare_parameter<int>("buzzer.gpio_pin", 17);
+
     gps_pub = create_publisher<cubesat_msgs::msg::GpsSample>("pi/gps", 10);
     power_pub = create_publisher<cubesat_msgs::msg::PowerSample>("pi/power", 10);
     accel_pub = create_publisher<cubesat_msgs::msg::AccelSample>("pi/lis3dh", 50);
@@ -54,10 +59,29 @@ PiIoNode::PiIoNode(const rclcpp::NodeOptions &options) : rclcpp::Node("pi_io_nod
                      "rates: 1/10/25/50/100/200/400, ranges: 2/4/8/16)",
                      lis_rate, lis_range);
     }
+    if (!buzzer.open(buzzer_chip, buzzer_pin)) {
+        RCLCPP_ERROR(get_logger(), "Buzzer configure failed on Chip=%s, Line=%ld", buzzer_chip.c_str(), buzzer_pin);
+    }
 
     gps_timer = create_wall_timer(periodFromHz(gps_hz), [this] { onGpsTimer(); });
     power_timer = create_wall_timer(periodFromHz(ina_hz), [this] { onPowerTimer(); });
     accel_timer = create_wall_timer(periodFromHz(lis_hz), [this] { onAccelTimer(); });
+
+    buzzer_timer = create_wall_timer(std::chrono::milliseconds(buzzer_period_ms), [this] { onBuzzerTimer(); });
+
+    this->buzzer_service = create_service<cubesat_msgs::srv::SetBuzzer>(
+        "/pi/buzzer", std::bind(&PiIoNode::setBuzzer, this, std::placeholders::_1, std::placeholders::_2));
+}
+
+void PiIoNode::setBuzzer(const std::shared_ptr<cubesat_msgs::srv::SetBuzzer::Request> request,
+                         std::shared_ptr<cubesat_msgs::srv::SetBuzzer::Response> response) {
+    RCLCPP_INFO(get_logger(), "Set Buzzer %04x repeat_count=%d", request->beep_code, request->repeat_count);
+    buzzer.set_code(request->beep_code, request->repeat_count);
+    response->success = true;
+}
+
+void PiIoNode::onBuzzerTimer() {
+    buzzer.onTimer();
 }
 
 void PiIoNode::onGpsTimer() {

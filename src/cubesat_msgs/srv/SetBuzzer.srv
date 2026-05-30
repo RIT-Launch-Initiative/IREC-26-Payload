@@ -1,0 +1,12 @@
+uint32 repeat_count
+uint32 beep_code
+uint32 BEEP_CODE_1_EQUAL = 0xffff0000
+uint32 BEEP_CODE_2_EQUAL = 0xff00ff00
+uint32 BEEP_CODE_3_EQUAL = 0xf0f0f0f0
+uint32 BEEP_CODE_SWUNG = 0xffff00f0
+uint32 BEEP_CODE_OFF = 0x00000000
+uint32 BEEP_CODE_ON = 0xffffffff
+uint32 BEEP_CODE_SMALL = 0xf0000000
+uint32 BEEP_CODE_TINY = 0x80000000
+---
+bool success
