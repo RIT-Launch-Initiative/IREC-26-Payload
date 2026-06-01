@@ -80,7 +80,7 @@ bool wait_for_irq(Sx126xLinuxHalContext &hal, sx126x_irq_mask_t wanted, uint32_t
     seen = 0;
 
     while (Clock::now() < deadline) {
-        if (sx126x_get_and_clear_irq_status(&hal, &seen) != SX126X_STATUS_OK) {
+        if (sx126x_get_irq_status(&hal, &seen) != SX126X_STATUS_OK) {
             return false;
         }
         if ((seen & wanted) != 0) {
@@ -89,7 +89,7 @@ bool wait_for_irq(Sx126xLinuxHalContext &hal, sx126x_irq_mask_t wanted, uint32_t
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 
-    return true;
+    return false;
 }
 
 bool set_continuous_rx(Sx126xLinuxHalContext &hal) {
@@ -237,6 +237,8 @@ bool Sx1262Radio::send(const std::vector<uint8_t> &data) {
 
     sx126x_irq_mask_t irq = 0;
     const bool got_irq = wait_for_irq(impl->hal, SX126X_IRQ_TX_DONE | SX126X_IRQ_TIMEOUT, kTxTimeoutMs + 100, irq);
+
+    sx126x_clear_irq_status(&impl->hal, SX126X_IRQ_TX_DONE | SX126X_IRQ_TIMEOUT);
     const bool success = got_irq && ((irq & SX126X_IRQ_TX_DONE) != 0);
 
     set_continuous_rx(impl->hal);
@@ -283,7 +285,7 @@ std::optional<ReceivedPacket> Sx1262Radio::receive() {
 bool Sx1262Radio::setReceiveMode() {
     std::lock_guard<std::mutex> lock(impl->mutex);
     auto logger = rclcpp::get_logger("sx1262");
-    if (!impl->is_configured || !set_rf_switch_rx(impl->hal)) {
+    if (!impl->is_configured) {
         RCLCPP_WARN(logger, "setReceiveMode failed isConfigured: %d", (int)impl->is_configured);
         return false;
     }
