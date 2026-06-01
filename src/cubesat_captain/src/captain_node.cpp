@@ -1,5 +1,6 @@
 #include "cubesat_captain/captain_node.hpp"
 #include "cubesat_captain/flipping_state.hpp"
+#include "cubesat_captain/packet_writer.hpp"
 #include "cubesat_captain/pad_state.hpp"
 
 #include <chrono>
@@ -8,17 +9,6 @@
 #include <string>
 
 namespace cubesat_captain {
-
-namespace {
-
-// std::chrono::nanoseconds periodFromHz(double hz) {
-//     if (hz <= 0.0) {
-//         return std::chrono::seconds(1);
-//     }
-//     return std::chrono::nanoseconds(static_cast<int64_t>(1e9 / hz));
-// }
-
-} // namespace
 
 CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     : rclcpp::Node("captain_node", options), status{},
@@ -31,8 +21,8 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     RCLCPP_INFO(get_logger(), "Pad HB: %f s, Flight HB %f s, Landed HB %f s", status.current_parameters.pad_heartbeat_s,
                 status.current_parameters.flight_heartbeat_s, status.current_parameters.landed_heartbeat_s);
 
-    RCLCPP_INFO(get_logger(), "Battery Low %.2f V, Dangerous %.2f", status.current_parameters.warn_battery_threshold_v, status.current_parameters.danger_battery_threshold_v);
-
+    RCLCPP_INFO(get_logger(), "Battery Low %.2f V, Dangerous %.2f", status.current_parameters.warn_battery_threshold_v,
+                status.current_parameters.danger_battery_threshold_v);
 
     if (!std::filesystem::exists(flight_dir)) {
         RCLCPP_ERROR(get_logger(), "flight_dir doesnt exist. Creating");
@@ -49,13 +39,27 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     power_sub = create_subscription<cubesat_msgs::msg::PowerSample>(
         "pi/power", 10, std::bind(&CaptainNode::handle_power, this, std::placeholders::_1));
 
+    gnss_sub = create_subscription<cubesat_msgs::msg::GpsSample>(
+        "pi/gps", 10, std::bind(&CaptainNode::handle_gnss, this, std::placeholders::_1));
+
     this->request_state_change_service = create_service<cubesat_msgs::srv::RequestStateChange>(
         "/pi/change_state",
         std::bind(&CaptainNode::requestStateChange, this, std::placeholders::_1, std::placeholders::_2));
 
-    this->set_buzzer_client = create_client<cubesat_msgs::srv::SetBuzzer>("/pi/buzzer");
+    this->request_telemetry_service = create_service<cubesat_msgs::srv::TelemetryRequest>(
+        "/pi/request_telemetry",
+        std::bind(&CaptainNode::requestTelemetry, this, std::placeholders::_1, std::placeholders::_2));
 
-    experts[(int)State::Pad] = new PadExpert(get_logger(), levers);
+    this->set_buzzer_client = create_client<cubesat_msgs::srv::SetBuzzer>("/pi/buzzer");
+    this->send_packet_client = create_client<cubesat_msgs::srv::SendRadioPacket>("/radio/send_packet");
+
+    heartbeat_timer =
+        create_wall_timer(std::chrono::milliseconds((int)(1000 * status.current_parameters.pad_heartbeat_s)),
+                          [this] { onHeartbeatTimer(); });
+
+    PadExpert *pad_expert = new PadExpert(get_logger(), levers);
+    experts[(int)State::Pad] = pad_expert;
+    experts[(int)State::Preboost] = new PreboostExpert(get_logger(), levers, pad_expert); // bad and terrible ngl
     experts[(int)State::Flipping] = new FlippingExpert(get_logger(), levers);
 
     // enter initial state
@@ -161,10 +165,38 @@ void CaptainNode::handle_power(const cubesat_msgs::msg::PowerSample::SharedPtr s
     was_battery_dangerous = battery_dangerous;
 }
 
+void CaptainNode::handle_gnss(const cubesat_msgs::msg::GpsSample::SharedPtr sample) {
+    status.update_gps_sample(*sample);
+}
+
 Expert *CaptainNode::expert_for_state(State state) {
     if (state > State::NumStates) {
         return nullptr;
     }
     return experts[(int)state];
 }
+
+void CaptainNode::emit_telemetry(cubesat_msgs::msg::TelemetryType telem_type) {
+    auto request = std::make_shared<cubesat_msgs::srv::SendRadioPacket::Request>();
+
+    request->data.resize(255);
+    int size = packet_for_telemetry(status, telem_type, request->data.data());
+    request->data.resize(size);
+
+    send_packet_client->async_send_request(request);
+}
+
+void CaptainNode::onHeartbeatTimer() {
+    cubesat_msgs::msg::TelemetryType typ;
+    typ.telem_id = cubesat_msgs::msg::TelemetryType::FLIGHT_HEARTBEAT;
+    emit_telemetry(typ);
+}
+
+void CaptainNode::requestTelemetry(const std::shared_ptr<cubesat_msgs::srv::TelemetryRequest::Request> request,
+                                   std::shared_ptr<cubesat_msgs::srv::TelemetryRequest::Response> response) {
+    RCLCPP_INFO(get_logger(), "Telemtery Requested: type %d", request->telemetry.telem_id);
+    emit_telemetry(request->telemetry);
+    response->success = true;
+}
+
 } // namespace cubesat_captain

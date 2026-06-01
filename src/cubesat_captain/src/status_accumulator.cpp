@@ -15,6 +15,20 @@ void StatusAccumulator::update_power_sample(const cubesat_msgs::msg::PowerSample
     last_power_sample = sample;
 }
 void StatusAccumulator::update_base_accel(const cubesat_msgs::msg::AccelSample &sample) { last_base_accel = sample; }
-State StatusAccumulator::active_state() { return (State)current_state.state; }
+State StatusAccumulator::active_state()const { return (State)current_state.state; }
+
+bool StatusAccumulator::has_gps() const { return last_gps_sample.fix_type != 0; }
+void StatusAccumulator::last_good_gps_position(float *lat, float *lon, float *alt) const {
+    
+    if (has_gps()){
+        *lat = last_gps_sample.latitude;
+        *lon = last_gps_sample.longitude;
+        *alt = last_gps_sample.altitude_m;
+    } else {
+        *lat = last_good_gps_sample.latitude;
+        *lon = last_good_gps_sample.longitude;
+        *alt = last_good_gps_sample.altitude_m;
+    }
+}
 
 } // namespace cubesat_captain

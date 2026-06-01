@@ -104,4 +104,17 @@ class PadExpert : public Expert {
     CMovingAverage<double, 12> avger{0.0};
 };
 
+class PreboostExpert : public Expert {
+  public:
+    /**
+     * Feeds data to the pad expert but handles turning on cameras and leaving expect mode
+     */
+    PreboostExpert(rclcpp::Logger logger, Levers &levers, PadExpert *pad_expert) : Expert(logger, levers), pad_expert(pad_expert) {}
+    ~PreboostExpert() {}
+    void handle_base_accel(const cubesat_msgs::msg::AccelSample &sample) override;
+
+  private:
+    PadExpert *pad_expert;
+};
+
 } // namespace cubesat_captain

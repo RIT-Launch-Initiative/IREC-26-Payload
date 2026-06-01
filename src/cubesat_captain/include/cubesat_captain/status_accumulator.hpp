@@ -39,7 +39,12 @@ class StatusAccumulator {
     void update_power_sample(const cubesat_msgs::msg::PowerSample &sample);
 
     void update_flight_state(const cubesat_msgs::msg::FlightState &);
-    State active_state();
+    State active_state() const;
+
+  // if the most recent gps packet had fix
+    bool has_gps() const;
+    // last known gps coordinates if we ever got a fix
+    void last_good_gps_position(float *lat, float *lon, float *alt) const;
 
     Parameters current_parameters;
 

@@ -31,10 +31,6 @@ class FlippingExpert : public Expert {
     void flip_feedback_cb(GoalHandleFlipServoAction::SharedPtr,
                           const std::shared_ptr<const FlipServoAction::Feedback> feedback);
 
-    void handle_base_accel(const cubesat_msgs::msg::AccelSample &sample) override {
-        // FaceAndConfidence face = which_side(sample);
-        // RCLCPP_INFO(logger, "On Face %d with confidence %f", face.side, face.confidence);
-    }
     static FaceAndConfidence which_side(const cubesat_msgs::msg::AccelSample &sample);
 };
 

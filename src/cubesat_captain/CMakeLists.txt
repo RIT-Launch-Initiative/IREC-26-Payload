@@ -8,6 +8,12 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CMAKE_C_STANDARD 23)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
+add_compile_options(-fsanitize=address)
+add_link_options(-fsanitize=address)
+
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
@@ -19,11 +25,14 @@ add_executable(captain_node
   src/pad_state.cpp
   src/flipping_state.cpp
   src/status_accumulator.cpp
+  src/packet_writer.cpp
 
   cubesat_comms/lora.c
   cubesat_comms/packets_p2g.c
   cubesat_comms/packets_g2p.c
 )
+
+
 
 
 target_include_directories(captain_node PRIVATE
