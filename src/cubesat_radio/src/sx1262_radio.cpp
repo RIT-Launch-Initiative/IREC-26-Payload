@@ -92,6 +92,11 @@ bool wait_for_irq(Sx126xLinuxHalContext &hal, sx126x_irq_mask_t wanted, uint32_t
     return true;
 }
 
+bool set_continuous_rx(Sx126xLinuxHalContext &hal) {
+    return set_rf_switch_rx(hal) &&
+           sx126x_set_rx_with_timeout_in_rtc_step(&hal, SX126X_RX_CONTINUOUS) == SX126X_STATUS_OK;
+}
+
 } // namespace
 
 struct Sx1262Radio::Impl {
@@ -234,8 +239,7 @@ bool Sx1262Radio::send(const std::vector<uint8_t> &data) {
     const bool got_irq = wait_for_irq(impl->hal, SX126X_IRQ_TX_DONE | SX126X_IRQ_TIMEOUT, kTxTimeoutMs + 100, irq);
     const bool success = got_irq && ((irq & SX126X_IRQ_TX_DONE) != 0);
 
-    set_rf_switch_rx(impl->hal);
-    sx126x_set_rx_with_timeout_in_rtc_step(&impl->hal, SX126X_RX_CONTINUOUS);
+    set_continuous_rx(impl->hal);
     return success;
 }
 
@@ -249,7 +253,8 @@ std::optional<ReceivedPacket> Sx1262Radio::receive() {
     if (sx126x_get_and_clear_irq_status(&impl->hal, &irq) != SX126X_STATUS_OK) {
         return std::nullopt;
     }
-    if ((irq & SX126X_IRQ_RX_DONE) == 0) {
+    if ((irq & SX126X_IRQ_RX_DONE) == 0 || (irq & SX126X_IRQ_CRC_ERROR) != 0) {
+        set_continuous_rx(impl->hal);
         return std::nullopt;
     }
 
@@ -257,6 +262,7 @@ std::optional<ReceivedPacket> Sx1262Radio::receive() {
     sx126x_pkt_status_lora_t pkt_status{};
     if (sx126x_get_rx_buffer_status(&impl->hal, &rx_status) != SX126X_STATUS_OK ||
         sx126x_get_lora_pkt_status(&impl->hal, &pkt_status) != SX126X_STATUS_OK || rx_status.pld_len_in_bytes == 0) {
+        set_continuous_rx(impl->hal);
         return std::nullopt;
     }
 
@@ -264,13 +270,13 @@ std::optional<ReceivedPacket> Sx1262Radio::receive() {
     packet.data.resize(rx_status.pld_len_in_bytes);
     if (sx126x_read_buffer(&impl->hal, rx_status.buffer_start_pointer, packet.data.data(),
                            rx_status.pld_len_in_bytes) != SX126X_STATUS_OK) {
+        set_continuous_rx(impl->hal);
         return std::nullopt;
     }
     packet.rssi_dbm = pkt_status.rssi_pkt_in_dbm;
     packet.snr_db = pkt_status.snr_pkt_in_db;
 
-    sx126x_clear_irq_status(&impl->hal, SX126X_IRQ_ALL);
-    sx126x_set_rx_with_timeout_in_rtc_step(&impl->hal, SX126X_RX_CONTINUOUS);
+    set_continuous_rx(impl->hal);
     return packet;
 }
 
@@ -284,7 +290,7 @@ bool Sx1262Radio::setReceiveMode() {
     RCLCPP_INFO(logger, "Setting Receive mode");
     
     // don't use normal set_rx with RX_CONTINUOUS since its argument is a ms value and will fail with the continuous flag
-    return sx126x_set_rx_with_timeout_in_rtc_step(&impl->hal, SX126X_RX_CONTINUOUS) == SX126X_STATUS_OK;
+    return set_continuous_rx(impl->hal);
 }
 
 bool Sx1262Radio::setSleepMode() {
@@ -305,6 +311,12 @@ bool Sx1262Radio::waitForInterrupt(std::chrono::milliseconds timeout) {
         std::lock_guard<std::mutex> lock(impl->mutex);
         if (!impl->is_configured) {
             return false;
+        }
+
+        sx126x_irq_mask_t irq = 0;
+        if (sx126x_get_irq_status(&impl->hal, &irq) == SX126X_STATUS_OK &&
+            (irq & (SX126X_IRQ_RX_DONE | SX126X_IRQ_CRC_ERROR | SX126X_IRQ_TIMEOUT)) != 0) {
+            return true;
         }
     }
 
