@@ -32,6 +32,8 @@ sudo apt-get install -y --no-install-recommends \
   ros-${ROS_DISTRO}-ros-base \
   ros-${ROS_DISTRO}-vision-opencv \
   ros-${ROS_DISTRO}-gscam
+  libcamera0 libcamera-tools libcamera-dev v4l-utils
+
 sudo apt-get clean
 sudo rm -rf /var/lib/apt/lists/*
 
