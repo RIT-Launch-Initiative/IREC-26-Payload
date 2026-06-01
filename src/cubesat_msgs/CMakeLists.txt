@@ -19,6 +19,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/FlipServo.msg"
   "msg/PayloadOrientation.msg"
   "msg/TelemetryType.msg"
+  "msg/LoraParameters.msg"
+  "msg/RadioState.msg"
   # Services
   "srv/StartNewFlight.srv"
   "srv/SetFlightFolder.srv"

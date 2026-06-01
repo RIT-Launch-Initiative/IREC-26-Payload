@@ -62,22 +62,24 @@ enum FlightPhase {
     FlightPhase_ExpectingLaunch = 2,
     FlightPhase_Flight = 3,
     FlightPhase_LandedFlipping = 4,
-    FlightPhase_LandedAutomatic = 5,
-    FlightPhase_LandedManual = 6,
+    FlightPhase_Unfolding = 5,
+    FlightPhase_AutoCamera = 6,
+    FlightPhase_ManualControl = 7,
+    FlightPhase_Emergency = 8,
 };
 
 enum StatusBit {
 
-    Active = 0,
-    Autonomous = 1,
-    LastArmMoveStalled = 2,
-    LastServoMoveStalled = 3,
-    ArmMoving = 4,
-    ServoMoving = 5,
-    InIdlePosition = 6,
-    MotorsOverTemp = 7,
-    RadioOverTemp = 8,
-    GPSHasFix = 9,
+    StatusBit_Active = 0,
+    StatusBit_Autonomous = 1,
+    StatusBit_LastArmMoveStalled = 2,
+    StatusBit_LastServoMoveStalled = 3,
+    StatusBit_ArmMoving = 4,
+    StatusBit_ServoMoving = 5,
+    StatusBit_InIdlePosition = 6,
+    StatusBit_MotorsOverTemp = 7,
+    StatusBit_RadioOverTemp = 8,
+    StatusBit_GPSHasFix = 9,
 
 };
 
@@ -158,7 +160,7 @@ struct Telemetry {
       int power;
   };
 };
-#define SIZEOF_PACKED_TELEMETRY \
+#define MAX_SIZEOF_PACKED_TELEMETRY \
     (1 \
      + MAX7(SIZEOF_PACKED_HEARTBEAT_STATS, \
             SIZEOF_PACKED_GENERAL_STATS_DETAILED, \

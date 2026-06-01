@@ -8,6 +8,8 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include "cubesat_msgs/msg/radio_packet.hpp"
+#include "cubesat_msgs/msg/lora_parameters.hpp"
+#include "cubesat_msgs/msg/radio_state.hpp"
 #include "cubesat_msgs/srv/send_radio_packet.hpp"
 
 #include "cubesat_radio/radio_profile.hpp"
@@ -23,8 +25,17 @@ public:
   ~RadioNode() override;
 
 private:
-  RadioProfile loadProfile();
+  cubesat_msgs::msg::LoraParameters loadParameterProfile();
+  /**
+   * Modifies member
+   * If no parameter file was found, dont overwrite anything
+   * return true if read
+   */
+  bool loadProfileFromFile(std::string path);
+  void serializeProfile(std::string path);
+
   RadioHardwareConfig loadHardwareConfig();
+  
   void receiveLoop();
   bool sendPacket(const std::vector<uint8_t> &data);
   void handleTxPacket(const cubesat_msgs::msg::RadioPacket::SharedPtr msg);
@@ -33,8 +44,14 @@ private:
           &request,
       std::shared_ptr<cubesat_msgs::srv::SendRadioPacket::Response> response);
 
+  
   std::unique_ptr<Sx1262Radio> radio;
+  cubesat_msgs::msg::LoraParameters profile;
+  std::string flight_dir;
+  
+  rclcpp::Publisher<cubesat_msgs::msg::RadioState>::SharedPtr statePub;
   rclcpp::Publisher<cubesat_msgs::msg::RadioPacket>::SharedPtr rxPacketPub;
+  
   rclcpp::Subscription<cubesat_msgs::msg::RadioPacket>::SharedPtr txPacketSub;
   rclcpp::Service<cubesat_msgs::srv::SendRadioPacket>::SharedPtr
       sendRadioPacketSrv;

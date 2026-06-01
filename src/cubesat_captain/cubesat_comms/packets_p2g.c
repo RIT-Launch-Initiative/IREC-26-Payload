@@ -140,7 +140,7 @@ int pack_telemetry(const struct Telemetry *telem, uint8_t *buf){
   case TelemetryType_FlightHeartbeat:
     return 1+pack_flight_heartbeat(&telem->flight_heartbeat_stats, buf+1);
   case TelemetryType_LandedHeartbeat:
-    return pack_landed_heartbeat(&telem->landed_heartbeat_stats, buf+1);
+    return 1+pack_landed_heartbeat(&telem->landed_heartbeat_stats, buf+1);
   case TelemetryType_Actuators:
     return 1+pack_actuator_positions(&telem->actuators, buf+1);
   case TelemetryType_GNSS:

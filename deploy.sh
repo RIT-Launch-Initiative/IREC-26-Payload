@@ -186,6 +186,7 @@ build_deploy_workspace() {
             source /opt/ros/${ROS_DISTRO}/setup.bash
             set -u
             colcon --log-base ${DEPLOY_LOG_BASE} build \
+                --event-handlers console_direct+ \
                 --build-base ${DEPLOY_BUILD_BASE} \
                 --install-base ${DEPLOY_INSTALL_BASE} \
                 --merge-install \

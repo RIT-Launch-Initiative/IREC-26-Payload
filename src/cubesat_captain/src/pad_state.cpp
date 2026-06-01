@@ -11,6 +11,11 @@ void PadExpert::handle_base_accel(const cubesat_msgs::msg::AccelSample &sample) 
     has_boosted_ |= (avger.Avg() > levers.status.current_parameters.boost_threshold_mps2);
 }
 
+void PreboostExpert::handle_base_accel(const cubesat_msgs::msg::AccelSample &sample) {
+    pad_expert->handle_base_accel(sample);
+}
+
+
 } // namespace cubesat_captain
 
 double accel_magnitude(const cubesat_msgs::msg::AccelSample &sample) {
