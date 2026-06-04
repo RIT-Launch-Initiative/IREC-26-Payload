@@ -80,7 +80,7 @@ bool wait_for_irq(Sx126xLinuxHalContext &hal, sx126x_irq_mask_t wanted, uint32_t
     seen = 0;
 
     while (Clock::now() < deadline) {
-        if (sx126x_get_irq_status(&hal, &seen) != SX126X_STATUS_OK) {
+        if (sx126x_get_and_clear_irq_status(&hal, &seen) != SX126X_STATUS_OK) {
             return false;
         }
         if ((seen & wanted) != 0) {
@@ -89,12 +89,7 @@ bool wait_for_irq(Sx126xLinuxHalContext &hal, sx126x_irq_mask_t wanted, uint32_t
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 
-    return false;
-}
-
-bool set_continous_rx(Sx126xLinuxHalContext &hal) {
-    return set_rf_switch_rx(hal) &&
-           sx126x_set_rx_with_timeout_in_rtc_step(&hal, SX126X_RX_CONTINUOUS) == SX126X_STATUS_OK;
+    return true;
 }
 
 } // namespace
@@ -114,10 +109,6 @@ struct Sx1262Radio::Impl {
 Sx1262Radio::Sx1262Radio(RadioHardwareConfig hardware) : impl(new Impl(hardware)) {
 
     auto logger = rclcpp::get_logger("sx1262");
-    RCLCPP_INFO(logger, "Creating SX1262 on dev=%s speed=%d gpio=%s rst=%d busy=%d dio1=%d tx_en=%d rx_en=%d",
-                hardware.spi_device.c_str(), hardware.spi_speed_hz, hardware.gpio_chip_name.c_str(),
-                hardware.reset_gpio, hardware.busy_gpio, hardware.dio1_gpio, hardware.tx_enable_gpio,
-                hardware.rx_enable_gpio);
     RCLCPP_INFO(logger, "Creating SX1262 on dev=%s speed=%d gpio=%s rst=%d busy=%d dio1=%d tx_en=%d rx_en=%d",
                 hardware.spi_device.c_str(), hardware.spi_speed_hz, hardware.gpio_chip_name.c_str(),
                 hardware.reset_gpio, hardware.busy_gpio, hardware.dio1_gpio, hardware.tx_enable_gpio,
@@ -159,15 +150,7 @@ bool Sx1262Radio::open() {
     if (sx126x_set_dio2_as_rf_sw_ctrl(&impl->hal, true) != SX126X_STATUS_OK) {
         RCLCPP_WARN(logger, "Failed to set dio2 as rf switch control. Necessary for EBYTE module");
         return false;
-
-    if (sx126x_set_dio2_as_rf_sw_ctrl(&impl->hal, true) != SX126X_STATUS_OK) {
-        RCLCPP_WARN(logger, "Failed to set dio2 as rf switch control. Necessary for EBYTE module");
-        return false;
     }
-
-    if (sx126x_set_dio3_as_tcxo_ctrl(&impl->hal, SX126X_TCXO_CTRL_1_8V, true) != SX126X_STATUS_OK) {
-        RCLCPP_WARN(logger, "Failed to set dio3 as TCXO control. Necessary for EBYTE module");
-        return false;
 
     if (sx126x_set_dio3_as_tcxo_ctrl(&impl->hal, SX126X_TCXO_CTRL_1_8V, true) != SX126X_STATUS_OK) {
         RCLCPP_WARN(logger, "Failed to set dio3 as TCXO control. Necessary for EBYTE module");
@@ -185,7 +168,6 @@ bool Sx1262Radio::configure(const RadioProfile &profile) {
     }
 
     impl->profile = profile;
-
 
     if (sx126x_set_standby(&impl->hal, SX126X_STANDBY_CFG_RC) != SX126X_STATUS_OK ||
         sx126x_set_pkt_type(&impl->hal, SX126X_PKT_TYPE_LORA) != SX126X_STATUS_OK ||
@@ -253,8 +235,6 @@ bool Sx1262Radio::send(const std::vector<uint8_t> &data) {
 
         RCLCPP_WARN(logger, "Failed to send because couldnt lora pkt params, buffer base, buffer, irq status, timeout, "
                             "or failed to switch to idle");
-        RCLCPP_WARN(logger, "Failed to send because couldnt lora pkt params, buffer base, buffer, irq status, timeout, "
-                            "or failed to switch to idle");
 
         return false;
     }
@@ -270,7 +250,8 @@ bool Sx1262Radio::send(const std::vector<uint8_t> &data) {
     const bool got_irq = wait_for_irq(impl->hal, SX126X_IRQ_TX_DONE | SX126X_IRQ_TIMEOUT, kTxTimeoutMs + 100, irq);
     const bool success = got_irq && ((irq & SX126X_IRQ_TX_DONE) != 0);
 
-    set_continous_rx(impl->hal);
+    set_rf_switch_rx(impl->hal);
+    sx126x_set_rx_with_timeout_in_rtc_step(&impl->hal, SX126X_RX_CONTINUOUS);
     return success;
 }
 
@@ -284,15 +265,14 @@ std::optional<ReceivedPacket> Sx1262Radio::receive() {
     if (sx126x_get_and_clear_irq_status(&impl->hal, &irq) != SX126X_STATUS_OK) {
         return std::nullopt;
     }
-    if ((irq & SX126X_IRQ_RX_DONE) == 0 || (irq & SX126X_IRQ_CRC_ERROR) == 0) {
-        set_continous_rx(impl->hal); return std::nullopt;
+    if ((irq & SX126X_IRQ_RX_DONE) == 0) {
+        return std::nullopt;
     }
 
     sx126x_rx_buffer_status_t rx_status{};
     sx126x_pkt_status_lora_t pkt_status{};
     if (sx126x_get_rx_buffer_status(&impl->hal, &rx_status) != SX126X_STATUS_OK ||
         sx126x_get_lora_pkt_status(&impl->hal, &pkt_status) != SX126X_STATUS_OK || rx_status.pld_len_in_bytes == 0) {
-        set_continous_rx(impl->hal);
         return std::nullopt;
     }
 
@@ -300,20 +280,20 @@ std::optional<ReceivedPacket> Sx1262Radio::receive() {
     packet.data.resize(rx_status.pld_len_in_bytes);
     if (sx126x_read_buffer(&impl->hal, rx_status.buffer_start_pointer, packet.data.data(),
                            rx_status.pld_len_in_bytes) != SX126X_STATUS_OK) {
-        set_continous_rx(impl->hal);
         return std::nullopt;
     }
     packet.rssi_dbm = pkt_status.rssi_pkt_in_dbm;
     packet.snr_db = pkt_status.snr_pkt_in_db;
 
-    set_continous_rx(impl->hal);
+    sx126x_clear_irq_status(&impl->hal, SX126X_IRQ_ALL);
+    sx126x_set_rx_with_timeout_in_rtc_step(&impl->hal, SX126X_RX_CONTINUOUS);
     return packet;
 }
 
 bool Sx1262Radio::setReceiveMode() {
     std::lock_guard<std::mutex> lock(impl->mutex);
     auto logger = rclcpp::get_logger("sx1262");
-    if (!impl->is_configured) {
+    if (!impl->is_configured || !set_rf_switch_rx(impl->hal)) {
         RCLCPP_WARN(logger, "setReceiveMode failed isConfigured: %d", (int)impl->is_configured);
         return false;
     }
@@ -342,11 +322,6 @@ bool Sx1262Radio::waitForInterrupt(std::chrono::milliseconds timeout) {
         std::lock_guard<std::mutex> lock(impl->mutex);
         if (!impl->is_configured) {
             return false;
-        }
-        sx126x_irq_mask_t irq = 0;
-        if (sx126x_get_irq_status(&impl->hal, &irq) == SX126X_STATUS_OK &&
-            (irq & (SX126X_IRQ_RX_DONE | SX126X_IRQ_CRC_ERROR | SX126X_IRQ_TIMEOUT)) != 0) {
-            return true;
         }
     }
 
