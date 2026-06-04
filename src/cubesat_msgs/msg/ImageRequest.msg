@@ -1,5 +1,3 @@
-uint8 image_id
-
 uint16 left
 uint16 right
 uint16 top

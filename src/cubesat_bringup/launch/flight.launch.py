@@ -80,11 +80,17 @@ def generate_launch_description():
             executable="camera_node",
             name="camera",
             output="screen",
+            respawn=True,
+            respawn_delay=2.0,
             parameters=[{
-                "camera_name": "camera",
-                "width": 1280,
-                "height": 720,
-                "frame_rate": 30,
+                "camera": "/base/soc/i2c0mux/i2c@1/imx219@10",
+                "width": 1640,
+                "height": 1232,
+                "format": "YUYV",
+                "FrameDurationLimits": [500000,500000],
+                "AeEnabled": True,
+                "AwbEnabled": True,
+                "AfMode": "Continuous",
             }],
             arguments=["--ros-args", "--log-level", "WARN"],
         )
@@ -94,7 +100,7 @@ def generate_launch_description():
             executable="cubesat_watch_node",
             name="watch",
             output="screen",
-            parameters = shared,
+            parameters = [shared],
             arguments=["--ros-args", "--log-level", "INFO"],
 
         )

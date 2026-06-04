@@ -10,6 +10,7 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED) 
 find_package(cubesat_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
 
@@ -32,6 +33,12 @@ add_executable(cubesat_watch_node
   src/ImageHandlerNode.cpp
 )
 
+
+message(STATUS "rclcpp CMake path: ${rclcpp_DIR}")
+
+target_link_directories(cubesat_watch_node PRIVATE ${rclcpp_DIR}/../../../lib/)
+
+
 ament_target_dependencies(cubesat_watch_node
   cubesat_msgs
   rclcpp
@@ -43,6 +50,7 @@ ament_target_dependencies(cubesat_watch_node
 target_link_libraries(cubesat_watch_node
   ${OpenCV_LIBRARIES}
   ssdv
+  camera camera-base
 )
 
 target_include_directories(cubesat_watch_node PUBLIC
@@ -50,8 +58,9 @@ target_include_directories(cubesat_watch_node PUBLIC
   $<INSTALL_INTERFACE:include>
   ${OpenCV_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party
+  ${rclcpp_DIR}/../../../include/libcamera/
 )
-
+message("libcam includes"   ${rclcpp_DIR}/../../../include/libcamera/)
 install(TARGETS cubesat_watch_node
   DESTINATION lib/${PROJECT_NAME}
 )

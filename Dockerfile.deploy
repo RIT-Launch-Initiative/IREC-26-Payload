@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-${ROS_DISTRO}-launch-ros \
     ros-${ROS_DISTRO}-rclcpp \
     ros-${ROS_DISTRO}-rosidl-default-generators \
+    ros-${ROS_DISTRO}-camera-ros \
     && rm -rf /var/lib/apt/lists/*
 
 RUN arch="$(dpkg --print-architecture)" \

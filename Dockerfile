@@ -37,6 +37,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-${ROS_DISTRO}-desktop \
     ros-${ROS_DISTRO}-vision-opencv \
     ros-${ROS_DISTRO}-gscam \
+    ros-${ROS_DISTRO}-camera-ros \
     && rm -rf /var/lib/apt/lists/*
 
 RUN arch="$(dpkg --print-architecture)" \

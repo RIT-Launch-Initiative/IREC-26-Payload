@@ -10,7 +10,9 @@ namespace cubesat_radio {
 RadioNode::RadioNode(const rclcpp::NodeOptions &options) : rclcpp::Node("radio_node", options) {
     const auto hardware = loadHardwareConfig();
     profile = loadParameterProfile();
-    if (!loadProfileFromFile(flight_dir)){}
+    if (!loadProfileFromFile(flight_dir)){
+        serializeProfile(flight_dir+"/radio_profile");
+    }
 
     statePub = create_publisher<cubesat_msgs::msg::RadioState>("radio/state", 10);
 
