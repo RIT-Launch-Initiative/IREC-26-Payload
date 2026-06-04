@@ -35,10 +35,15 @@ class CrashoutSTM {
     void startHold();
     void setPoseEst(const ArmPose &pose);
     void setArmTarget(const ArmPose &pose);
+    void setJogMovement(uint8_t motor, uint16_t iterations, int16_t mv);
     void startArmMovement();
+
+    void startJogMovement();
     void startServoMovement(FlipServo servoid);
     void stopMovement();
     void setServoMotion(FlipServo servoid, FlipServoMotion motion);
+    
+    std::optional<Status> setBaseImuAndReturnStatus(const Vec3_16 &base);
 
   private:
     std::optional<Transfer> transceive(const Transfer &outbound);

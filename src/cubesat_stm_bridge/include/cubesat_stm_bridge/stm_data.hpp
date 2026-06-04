@@ -10,6 +10,8 @@ enum class State {
     Servo1Moving = 2,
     Servo2Moving = 3,
     Servo3Moving = 4,
+    Holding = 5,
+    Jogging = 6,
 };
 
 using StatusWord = uint16_t;
@@ -90,5 +92,13 @@ struct ServoTargets {
     uint16_t servo2;
     uint16_t servo3;
 };
+
+
+struct JogAction {
+    uint8_t motor = 0;
+    uint16_t iterations = 0;
+    int16_t millivolts = 0;
+};
+
 
 } // namespace StmBridge

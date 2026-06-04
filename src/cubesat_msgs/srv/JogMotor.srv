@@ -1,0 +1,5 @@
+uint8 motor
+uint32 milliseconds
+float32 voltage
+---
+bool success

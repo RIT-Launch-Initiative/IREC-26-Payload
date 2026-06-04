@@ -1,7 +1,0 @@
-uint32 milliseconds
-float32 voltage
----
-bool success
-bool overcurrent
----
-ArmStatus status

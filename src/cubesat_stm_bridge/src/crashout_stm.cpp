@@ -8,6 +8,7 @@
 #include <thread>
 #include <unistd.h>
 
+
 namespace StmBridge {
 constexpr std::chrono::duration reset_time{std::chrono::milliseconds(100)};
 constexpr std::chrono::duration between_time{std::chrono::milliseconds(2)};
@@ -34,23 +35,26 @@ enum class SpiCommand : uint8_t {
     StartServo2 = 8,
     StartServo3 = 9,
     StartHold = 10,
-    StopMoving = 11,
+    StartJog = 11,
+    StopMoving = 12,
 
-    WritePoseEst = 12,  // 'rezero' yaw, spitch, epitch, wpitch
-    R_ReadPoseEst = 13, // yaw, spitch, epitch, wpitch
+    WritePoseEst = 13,  // 'rezero' yaw, spitch, epitch, wpitch
+    R_ReadPoseEst = 14, // yaw, spitch, epitch, wpitch
 
-    WriteArmTarget = 14,
-    R_ReadArmTarget = 15,
+    WriteArmTarget = 15,
+    R_ReadArmTarget = 16,
 
-    WriteFlipServo1Motion = 16,
-    WriteFlipServo2Motion = 17,
-    WriteFlipServo3Motion = 18,
+    WriteFlipServo1Motion = 17,
+    WriteFlipServo2Motion = 18,
+    WriteFlipServo3Motion = 19,
 
-    R_ReadFlipServo1Motion = 19,
-    R_ReadFlipServo2Motion = 20,
-    R_ReadFlipServo3Motion = 21,
+    R_ReadFlipServo1Motion = 20,
+    R_ReadFlipServo2Motion = 21,
+    R_ReadFlipServo3Motion = 22,
 
-    R_ReadTemps = 22, // stm, link1, link2
+    WriteJog = 23,
+
+    R_ReadTemps = 24, // stm, link1, link2
 };
 
 bool CrashoutSTM::open(std::string spidev, uint32_t speed_hz) {
@@ -79,7 +83,7 @@ uint32_t FlipServoMotion::total_duration() const {
     return open_duration + open_travel_duration + close_travel_duration;
 }
 
-ArmPose decode_pose(const std::span<uint8_t> &buf) {
+ArmPose decode_pose(const uint8_t *buf) {
     return {
         static_cast<int8_t>(buf[0]),
         static_cast<int8_t>(buf[1]),
@@ -98,6 +102,25 @@ FlipServoMotion decode_servo_motion(const std::span<uint8_t> &buf) {
     };
 }
 
+JogAction decode_jog_action(uint8_t *buf) {
+    return {
+        .motor = buf[0],
+        .iterations = (uint16_t)((buf[1] << 8) | buf[2]),
+        .millivolts = (int16_t)((buf[3] << 8) | buf[4]),
+    };
+}
+void encode_jog_action(const JogAction *act, uint8_t *buf) {
+    buf[0] = act->motor;
+    buf[1] = (act->iterations >> 8) & 0xff;
+    buf[2] = act->iterations & 0xff;
+    buf[3] = (act->millivolts >> 8) & 0xff;
+    buf[4] = act->millivolts & 0xff;
+}
+
+void CrashoutSTM::startJogMovement() {
+    uint8_t cmd = (uint8_t)SpiCommand::StartJog;
+    transceive(Transfer{cmd});
+}
 void CrashoutSTM::startArmMovement() {
     uint8_t cmd = (uint8_t)SpiCommand::StartArm;
     transceive(Transfer{cmd});
@@ -107,7 +130,6 @@ void CrashoutSTM::startHold() {
     uint8_t cmd = (uint8_t)(SpiCommand::StartHold);
     transceive(Transfer{cmd});
 }
-
 
 void CrashoutSTM::stopMovement() {
     uint8_t cmd = (uint8_t)(SpiCommand::StopMoving);
@@ -127,6 +149,14 @@ void CrashoutSTM::setServoMotion(FlipServo servoid, FlipServoMotion motion) {
                       motion.closedness,
                       motion.close_travel_duration};
     dump_transfer("Outbound: ", outbound);
+    transceive(outbound);
+}
+
+void CrashoutSTM::setJogMovement(uint8_t motor, uint16_t iterations, int16_t mv) {
+    uint8_t cmd = (uint8_t)SpiCommand::WriteJog;
+    Transfer outbound{cmd, 0, 0, 0, 0, 0};
+    JogAction jog{motor, iterations, mv};
+    encode_jog_action(&jog, outbound.data() + 1);
     transceive(outbound);
 }
 
@@ -170,6 +200,13 @@ void CrashoutSTM::reset() {
     recover();
 }
 
+Status status_from_transfer(const Transfer &resp){
+        Status status{};
+    status.status_word = (resp.at(0) << 8) | resp.at(1);
+    status.pose = decode_pose(resp.data()+2);
+    status.uptime_lsw = (resp.at(6) << 8) | resp.at(7);
+    return status;
+}
 std::optional<Status> CrashoutSTM::getStatus() {
     // a no op will have the default command come out of the stm which is the
     // status
@@ -178,14 +215,8 @@ std::optional<Status> CrashoutSTM::getStatus() {
     if (!resp.has_value()) {
         return {};
     }
-    Status status{};
-    status.status_word = (resp->at(0) << 8) | resp->at(1);
-    status.pose = decode_pose(std::span<uint8_t>{*resp}.subspan(2, 6));
-    status.uptime_lsw = (resp->at(6) << 8) | resp->at(7);
-    return status;
+    return status_from_transfer(*resp);
 }
-
-
 
 std::optional<ArmPose> CrashoutSTM::getArmPoseEst() {
     Transfer outbound{(uint8_t)SpiCommand::R_ReadPoseEst};
@@ -196,7 +227,7 @@ std::optional<ArmPose> CrashoutSTM::getArmPoseEst() {
     }
     // 0 - 2 is status bits and response kind
     // TODO check response kind
-    return decode_pose(std::span<uint8_t>{*response}.subspan(2, 6));
+    return decode_pose(response->data()+2);
 }
 std::optional<ArmPose> CrashoutSTM::getArmTarget() {
     Transfer outbound{(uint8_t)SpiCommand::R_ReadArmTarget};
@@ -207,13 +238,42 @@ std::optional<ArmPose> CrashoutSTM::getArmTarget() {
     }
     // 0 - 2 is status bits and response kind
     // TODO check response kind
-    return decode_pose(std::span<uint8_t>{*response}.subspan(2, 6));
+    return decode_pose(response->data()+2);
 }
 
 void CrashoutSTM::recover() {
     // clear any waiting response by getting and discarding it
     transceive(Transfer{});
 }
+
+void encode_vec3_16(Vec3_16 v, uint8_t *buf) {
+    buf[0] = (v.x >> 8) & 0xff;
+    buf[1] = v.x & 0xff;
+    buf[2] = (v.y >> 8) & 0xff;
+    buf[3] = v.y & 0xff;
+    buf[4] = (v.z >> 8) & 0xff;
+    buf[5] = v.z & 0xff;
+}
+
+Vec3_16 decode_vec3_16(uint8_t *buf) {
+    return {
+        .x = (int16_t) ((buf[0] << 8) | buf[1]),
+        .y = (int16_t) ((buf[2] << 8) | buf[3]),
+        .z = (int16_t) ((buf[4] << 8) | buf[5]),
+    };
+}
+
+std::optional<Status> CrashoutSTM::setBaseImuAndReturnStatus(const Vec3_16 &base){
+    Transfer outbound{(uint8_t)SpiCommand::WriteBaseAccel};
+    encode_vec3_16(base, outbound.data()+1);
+    auto ret = transceive(outbound);
+    if (!ret){
+        return {};
+    }
+    
+    return status_from_transfer(*ret);
+}
+
 
 std::optional<Transfer> CrashoutSTM::transceive(const Transfer &outbound) {
     Transfer inbound{0};

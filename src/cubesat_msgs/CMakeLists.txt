@@ -32,11 +32,12 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/RequestStateChange.srv"
   "srv/TelemetryRequest.srv"
   "srv/SetBuzzer.srv"
+  "srv/JogMotor.srv"
+  "srv/ZeroArm.srv"
   # Actions
   "action/FlipVehicle.action"
   "action/FlipServoAction.action"
   "action/ExtendArm.action"
-  "action/JogMotor.action"
   "action/CapturePanorama.action"
   DEPENDENCIES builtin_interfaces
 )

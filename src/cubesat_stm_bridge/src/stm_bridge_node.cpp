@@ -33,17 +33,9 @@ StmBridgeNode::StmBridgeNode(const rclcpp::NodeOptions &options) : rclcpp::Node(
         RCLCPP_ERROR(get_logger(), "Crashout STM creation failed: spidev='%s' spi_hz=%ld", spi_device.c_str(),
                      spi_bus_hz);
     }
-    // if (!ina.open(ina_dev, static_cast<uint8_t>(ina_addr))) {
-    //     RCLCPP_ERROR(get_logger(), "INA260 open failed: device='%s' addr=0x%02X", ina_dev.c_str(), ina_addr);
-    // }
-    // if (!lis.open(lis_dev, static_cast<uint8_t>(lis_addr))) {
-    //     RCLCPP_ERROR(get_logger(), "LIS3DH open failed: device='%s' addr=0x%02X", lis_dev.c_str(), lis_addr);
-    // } else if (!lis.configure(static_cast<uint16_t>(lis_rate), static_cast<uint8_t>(lis_range))) {
-    //     RCLCPP_ERROR(get_logger(),
-    //                  "LIS3DH configure failed: rate=%d Hz range=±%dg (allowed "
-    //                  "rates: 1/10/25/50/100/200/400, ranges: 2/4/8/16)",
-    //                  lis_rate, lis_range);
-    // }
+    imu_sub = create_subscription<cubesat_msgs::msg::AccelSample>(
+        "pi/lis3dh", 10, std::bind(&StmBridgeNode::handle_imu, this, std::placeholders::_1));
+
     using namespace std::placeholders;
 
     this->flip_action_server_ = rclcpp_action::create_server<FlipServoAction>(
@@ -51,13 +43,22 @@ StmBridgeNode::StmBridgeNode(const rclcpp::NodeOptions &options) : rclcpp::Node(
         std::bind(&StmBridgeNode::handle_flip_cancel, this, _1),
         std::bind(&StmBridgeNode::handle_flip_accepted, this, _1));
 
+    this->arm_action_server_ = rclcpp_action::create_server<ExtendArm>(
+        this, "/stm/move_arm", std::bind(&StmBridgeNode::handle_arm_goal, this, _1, _2),
+        std::bind(&StmBridgeNode::handle_arm_cancel, this, _1),
+        std::bind(&StmBridgeNode::handle_arm_accepted, this, _1));
+
+
     this->hold_service = create_service<cubesat_msgs::srv::HoldShut>(
-        "/stm/hold_shut",
-        std::bind(&StmBridgeNode::holdShut, this, std::placeholders::_1, std::placeholders::_2));
+        "/stm/hold_shut", std::bind(&StmBridgeNode::holdShut, this, std::placeholders::_1, std::placeholders::_2));
+
+    this->jog_service = create_service<cubesat_msgs::srv::JogMotor>(
+        "/stm/jog_motor", std::bind(&StmBridgeNode::jogMotor, this, std::placeholders::_1, std::placeholders::_2));
+
+    this->zero_arm_service = create_service<cubesat_msgs::srv::ZeroArm>(
+        "/stm/zero_arm", std::bind(&StmBridgeNode::zeroArm, this, std::placeholders::_1, std::placeholders::_2));
 
     status_timer = create_wall_timer(periodFromHz(status_hz), [this] { onStatusTimer(); });
-    // power_timer = create_wall_timer(periodFromHz(ina_hz), [this] { onPowerTimer(); });
-    // accel_timer = create_wall_timer(periodFromHz(lis_hz), [this] { onAccelTimer(); });
 }
 
 void StmBridgeNode::FillArmStatusFlags(StmBridge::StatusWord word, cubesat_msgs::msg::ArmStatus &status) {
@@ -77,11 +78,12 @@ void StmBridgeNode::FillArmStatusFlags(StmBridge::StatusWord word, cubesat_msgs:
 
 void StmBridgeNode::onStatusTimer() {
     using namespace StmBridge;
-    auto maybe_status = crashout.getStatus();
+    auto maybe_status = crashout.setBaseImuAndReturnStatus(normed_v16(last_pi_imu));
     if (!maybe_status.has_value()) {
         RCLCPP_WARN(get_logger(), "Failed to get status from STM");
         return;
     }
+
     StmBridge::Status arm_status = *maybe_status;
     cubesat_msgs::msg::ArmStatus pub_status;
     FillArmStatusFlags(arm_status.status_word, pub_status);
@@ -104,6 +106,9 @@ void StmBridgeNode::onStatusTimer() {
         break;
     case BridgeMode::MovingServo3:
         tickServo(StmBridge::Servo3);
+        break;
+    case BridgeMode::MovingArm:
+        tickArm();
         break;
     case BridgeMode::Holding:
         // don't need to do anything
@@ -169,6 +174,54 @@ void StmBridgeNode::tickServo(StmBridge::FlipServo servoid) {
     flip_servo_action_handle->publish_feedback(feedback);
 }
 
+void StmBridgeNode::tickArm(){
+    if (arm_action_handle == nullptr) {
+        RCLCPP_WARN(get_logger(), "Was in arm mode but arm action goal handle was null!!");
+        active_mode = BridgeMode::Idle;
+        return;
+    }
+    using ArmState = cubesat_msgs::msg::ArmState;
+    bool still_moving = last_status.state.state == ArmState::STATE_ARM_MOVING;
+ 
+    if (now() < arm_should_show_progress_time) {
+        // don't cancel just bc we asked before it realized we commanded it
+        still_moving = true;
+    }
+
+    bool overtime = now() > arm_timeout_time;
+    if (!still_moving || overtime) {
+        RCLCPP_INFO(get_logger(), "Finished Arm Movement. Overtime %s", overtime ? "yes" : "no");
+        // say end (if not cancelled, success)
+        auto result = std::make_shared<ExtendArm::Result>();
+        result->success = !overtime;
+        if (overtime) {
+            arm_action_handle->abort(result);
+        } else {
+            arm_action_handle->succeed(result);
+        }
+        active_mode = BridgeMode::Idle;
+        arm_action_handle = nullptr;
+        return;
+    }
+
+    if (arm_action_handle->is_canceling()) {
+        crashout.stopMovement();
+        RCLCPP_INFO(get_logger(), "Cancelled Arm Movement");
+        auto result = std::make_shared<ExtendArm::Result>();
+        result->success = false;
+        arm_action_handle->canceled(result);
+        active_mode = BridgeMode::Idle;
+        arm_action_handle = nullptr;
+        return;
+    }
+
+    auto feedback = std::make_shared<ExtendArm::Feedback>();
+    feedback->arm_status = last_status;
+    arm_action_handle->publish_feedback(feedback);
+
+}
+
+
 void StmBridgeNode::holdShut(const std::shared_ptr<cubesat_msgs::srv::HoldShut::Request> request,
                              std::shared_ptr<cubesat_msgs::srv::HoldShut::Response> response) {
     RCLCPP_INFO(get_logger(), "Request to hold=%d", (int)request->should_hold);
@@ -193,6 +246,39 @@ void StmBridgeNode::holdShut(const std::shared_ptr<cubesat_msgs::srv::HoldShut::
             active_mode = BridgeMode::Idle;
             response->success = true;
         }
+    }
+}
+
+void StmBridgeNode::jogMotor(const std::shared_ptr<cubesat_msgs::srv::JogMotor::Request> request,
+                             std::shared_ptr<cubesat_msgs::srv::JogMotor::Response> response) {
+    RCLCPP_INFO(get_logger(), "Request to jog motor idx=%d iterations = %d ms at %f V", (int)request->motor,
+                (int)request->milliseconds, request->voltage);
+    if (active_mode == BridgeMode::Idle) {
+        // start
+        crashout.setJogMovement(request->motor, request->milliseconds / 10, (int16_t)(request->voltage * 1000));
+        crashout.startJogMovement();
+        response->success = true;
+    } else {
+        RCLCPP_WARN(get_logger(), "Not jogging motors because not idle. Was: %d", (int)active_mode);
+        // decline
+        response->success = false;
+    }
+}
+
+void StmBridgeNode::zeroArm(const std::shared_ptr<cubesat_msgs::srv::ZeroArm::Request> request,
+                            std::shared_ptr<cubesat_msgs::srv::ZeroArm::Response> response) {
+    RCLCPP_INFO(get_logger(), "Request to zero arm to (%d, %d, %d, %d)", request->shoulder_yaw, request->shoulder_pitch,
+                request->elbow_angle, request->wrist_angle);
+
+    if (active_mode == BridgeMode::Idle) {
+        // start
+        crashout.setPoseEst(
+            {request->shoulder_yaw, request->shoulder_pitch, request->elbow_angle, request->wrist_angle});
+       response->success = true;
+    } else {
+        RCLCPP_WARN(get_logger(), "Not zeroing arm because not idle. Was: %d", (int)active_mode);
+        // decline
+        response->success = false;
     }
 }
 
@@ -269,6 +355,63 @@ void StmBridgeNode::handle_flip_accepted(const std::shared_ptr<GoalHandleFlipSer
                 flip_timeout_time.nanoseconds());
 
     crashout.startServoMovement(rosToStm(goal.servo_id));
+}
+
+rclcpp_action::GoalResponse StmBridgeNode::handle_arm_goal(const rclcpp_action::GoalUUID &uuid,
+                                                           std::shared_ptr<const ExtendArm::Goal> goal) {
+    RCLCPP_INFO(this->get_logger(), "Received goal request to move arm. goto (%d, %d, %d, %d)", goal->shoulder_yaw,
+                goal->shoulder_pitch, goal->elbow_pitch, goal->wrist_pitch);
+    (void)uuid;
+    if (active_mode == BridgeMode::Idle) {
+        active_mode = BridgeMode::MovingArm;
+        RCLCPP_WARN(get_logger(), "Accepting arm move request");
+        return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+    } else {
+        RCLCPP_WARN(get_logger(), "Rejecting arm move request because not idle");
+        return rclcpp_action::GoalResponse::REJECT;
+    }
+}
+rclcpp_action::CancelResponse StmBridgeNode::handle_arm_cancel(const std::shared_ptr<GoalHandleExtendArm> goal_handle) {
+    RCLCPP_INFO(this->get_logger(), "Received request to cancel arm");
+    (void)goal_handle;
+    // always accept cancels, handled in tickServo / tickArm
+    return rclcpp_action::CancelResponse::ACCEPT;
+}
+
+void StmBridgeNode::handle_arm_accepted(const std::shared_ptr<GoalHandleExtendArm> goal_handle) {
+    const ExtendArm::Goal goal = *goal_handle->get_goal();
+    const StmBridge::ArmPose pose{
+        .shoulder_yaw = goal.shoulder_yaw,
+        .shoulder_pitch = goal.shoulder_pitch,
+        .elbow_pitch = goal.elbow_pitch,
+        .wrist_pitch = goal.wrist_pitch,
+    };
+    crashout.setBaseImuAndReturnStatus(normed_v16(last_pi_imu));
+
+    crashout.setArmTarget(pose);
+    arm_action_handle = goal_handle;
+    arm_start_time = now();
+
+    arm_should_show_progress_time = arm_start_time + rclcpp::Duration(0, 30 * 1000 * 1000);
+    // timeout if its > 2x the amount of time we expect
+    uint32_t duration_ms = 15000;
+    uint64_t duration_ns = ((uint64_t)duration_ms * 1000 * 1000) * 2;
+    arm_timeout_time = arm_start_time + rclcpp::Duration(duration_ns / 1000000000, duration_ns % 1000000000);
+    RCLCPP_INFO(get_logger(), "Timeout %ld ns. Starting at %ld, waiting for %ld, timeout at %ld", duration_ns,
+                arm_start_time.nanoseconds(), arm_should_show_progress_time.nanoseconds(),
+                arm_timeout_time.nanoseconds());
+
+    crashout.startArmMovement();
+}
+
+void StmBridgeNode::handle_imu(const cubesat_msgs::msg::AccelSample::SharedPtr sample) { last_pi_imu = *sample; }
+StmBridge::Vec3_16 StmBridgeNode::normed_v16(const cubesat_msgs::msg::AccelSample &sample) {
+    float normsqred = sample.ax * sample.ax + sample.ay * sample.ay + sample.az * sample.az;
+    float norm = std::sqrt(normsqred);
+    float nx = sample.ax / norm;
+    float ny = sample.ay / norm;
+    float nz = sample.az / norm;
+    return {(int16_t)(nx * 32767), (int16_t)(ny * 32767), (int16_t)(nz * 32767)};
 }
 
 } // namespace cubesat_stm_bridge
