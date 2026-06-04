@@ -15,7 +15,7 @@ def generate_launch_description():
     pi_io_cfg = os.path.join(pi_io_pkg, "config", "pi_io.yaml")
     stm_bridge_cfg = os.path.join(bringup_pkg, "config", "stm_bridge.yaml")
     radio_cfg = os.path.join(bringup_pkg, "config", "radio.yaml")
-    vision_cfg = os.path.join(bringup_pkg, "config", "vision.yaml")
+    vision_cfg = os.path.join(bringup_pkg, "config", "watch.yaml")
 
     flight_dir_arg = DeclareLaunchArgument(
         "flight_dir",
@@ -75,6 +75,31 @@ def generate_launch_description():
         arguments=["--ros-args", "--log-level", "WARN"],
     )
 
+    camera = Node(
+            package="camera_ros",
+            executable="camera_node",
+            name="camera",
+            output="screen",
+            parameters=[{
+                "camera_name": "camera",
+                "width": 1280,
+                "height": 720,
+                "frame_rate": 30,
+            }],
+            arguments=["--ros-args", "--log-level", "WARN"],
+        )
+    
+    watch = Node(
+            package="cubesat_watch",
+            executable="cubesat_watch_node",
+            name="watch",
+            output="screen",
+            parameters = shared,
+            arguments=["--ros-args", "--log-level", "INFO"],
+
+        )
+    
+
     # vision = Node(
     #     package="cubesat_vision",
     #     executable="vision_node",
@@ -93,6 +118,7 @@ def generate_launch_description():
             stm_bridge,
             # control,
             radio,
-            # vision,
+            camera,
+            watch
         ]
     )

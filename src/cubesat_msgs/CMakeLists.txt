@@ -21,6 +21,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/TelemetryType.msg"
   "msg/LoraParameters.msg"
   "msg/RadioState.msg"
+  "msg/ImageRequest.msg"
+  "msg/ImageMetadata.msg" 
   # Services
   "srv/StartNewFlight.srv"
   "srv/SetFlightFolder.srv"
