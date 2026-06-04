@@ -22,6 +22,11 @@ struct G2PLinkHeader {
                                             // needs_ack set
 };
 
+enum UnpackResult unpack_g2p_link_header(const uint8_t *buf,
+                                         uint32_t len,
+                                         struct G2PLinkHeader *header);
+int pack_g2p_link_header(const struct G2PLinkHeader *header, uint8_t *buf);
+
 
 struct StartVideoData {
   uint8_t seconds;
@@ -122,7 +127,6 @@ struct CommandAndData
         // CancelExecutingArmSequence
         // ZeroShoulder Assume Open
         // RunOpenSequence
-        struct ManualServoPositionsData manual_zero_positions;
 
         struct ShellExecData shell_exec;
         struct ShellExecReturnDataRequest shell_exec_return_info_request;

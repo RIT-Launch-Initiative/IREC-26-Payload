@@ -19,6 +19,7 @@ find_package(cubesat_msgs REQUIRED)
 add_executable(captain_node
   src/main.cpp
   src/captain_node.cpp
+  src/captain_comms.cpp
   src/pad_state.cpp
   src/flipping_state.cpp
   src/status_accumulator.cpp

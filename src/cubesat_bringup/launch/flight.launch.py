@@ -15,8 +15,9 @@ def generate_launch_description():
     pi_io_cfg = os.path.join(pi_io_pkg, "config", "pi_io.yaml")
     stm_bridge_cfg = os.path.join(bringup_pkg, "config", "stm_bridge.yaml")
     radio_cfg = os.path.join(bringup_pkg, "config", "radio.yaml")
-    vision_cfg = os.path.join(bringup_pkg, "config", "watch.yaml")
 
+
+    # TODO
     flight_dir_arg = DeclareLaunchArgument(
         "flight_dir",
         description="Absolute path to the active flight data directory",

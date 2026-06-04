@@ -5,6 +5,7 @@
 #include "cubesat_msgs/msg/flight_state.hpp"
 #include "cubesat_msgs/msg/power_sample.hpp"
 #include "cubesat_msgs/msg/telemetry_type.hpp"
+#include "cubesat_msgs/msg/radio_packet.hpp"
 #include "cubesat_msgs/srv/request_state_change.hpp"
 #include "cubesat_msgs/srv/set_buzzer.hpp"
 #include "cubesat_msgs/srv/telemetry_request.hpp"
@@ -50,8 +51,10 @@ class CaptainNode : public rclcpp::Node {
     void handle_imu(const cubesat_msgs::msg::AccelSample::SharedPtr sample);
     void handle_power(const cubesat_msgs::msg::PowerSample::SharedPtr sample);
     void handle_gnss(const cubesat_msgs::msg::GpsSample::SharedPtr sample);
+    void handle_packet(const cubesat_msgs::msg::RadioPacket::SharedPtr packet);
 
     void onHeartbeatTimer();
+    void onCallsignTimer(); //TODO transmit callsign every once and a while
 
     StatusAccumulator status;
     Levers levers;
@@ -67,6 +70,7 @@ class CaptainNode : public rclcpp::Node {
     rclcpp::Subscription<cubesat_msgs::msg::AccelSample>::SharedPtr imu_sub;
     rclcpp::Subscription<cubesat_msgs::msg::PowerSample>::SharedPtr power_sub;
     rclcpp::Subscription<cubesat_msgs::msg::GpsSample>::SharedPtr gnss_sub;
+    rclcpp::Subscription<cubesat_msgs::msg::RadioPacket>::SharedPtr radio_sub;
 
     rclcpp::Publisher<cubesat_msgs::msg::FlightState>::SharedPtr state_pub;
 

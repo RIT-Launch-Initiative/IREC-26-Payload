@@ -42,6 +42,10 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     gnss_sub = create_subscription<cubesat_msgs::msg::GpsSample>(
         "pi/gps", 10, std::bind(&CaptainNode::handle_gnss, this, std::placeholders::_1));
 
+    radio_sub = create_subscription<cubesat_msgs::msg::RadioPacket>(
+        "radio/rx_packet", 10, std::bind(&CaptainNode::handle_packet, this, std::placeholders::_1));
+
+
     this->request_state_change_service = create_service<cubesat_msgs::srv::RequestStateChange>(
         "/pi/change_state",
         std::bind(&CaptainNode::requestStateChange, this, std::placeholders::_1, std::placeholders::_2));
@@ -168,6 +172,11 @@ void CaptainNode::handle_power(const cubesat_msgs::msg::PowerSample::SharedPtr s
 void CaptainNode::handle_gnss(const cubesat_msgs::msg::GpsSample::SharedPtr sample) {
     status.update_gps_sample(*sample);
 }
+
+
+
+
+
 
 Expert *CaptainNode::expert_for_state(State state) {
     if (state > State::NumStates) {

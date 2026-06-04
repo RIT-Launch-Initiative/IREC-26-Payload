@@ -28,7 +28,6 @@ class PiIoNode : public rclcpp::Node {
                   std::shared_ptr<cubesat_msgs::srv::SetBuzzer::Response> response);
 
 
-
     GpsNmeaReader gps;
     Ina260Driver ina;
     Lis3dhDriver lis;
