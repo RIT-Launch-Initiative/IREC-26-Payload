@@ -5,7 +5,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(ament_cmake REQUIRED)
@@ -39,6 +39,10 @@ target_include_directories(cubesat_radio_core PUBLIC
 )
 target_link_libraries(cubesat_radio_core PUBLIC cubesat_radio_hal sx126x_driver)
 
+
+add_subdirectory(../cubesat_captain/cubesat_comms ${CMAKE_CURRENT_BINARY_DIR}/cubesat_comms)
+
+
 add_executable(radio_node
   src/main.cpp
   src/radio_node.cpp
@@ -47,7 +51,7 @@ target_include_directories(radio_node PRIVATE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 ament_target_dependencies(radio_node rclcpp cubesat_msgs)
-target_link_libraries(radio_node cubesat_radio_core)
+target_link_libraries(radio_node cubesat_radio_core cubesat_comms)
 
 install(TARGETS
   cubesat_radio_hal

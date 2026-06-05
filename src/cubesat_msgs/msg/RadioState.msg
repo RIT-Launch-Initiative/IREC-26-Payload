@@ -1,5 +1,6 @@
 uint8 state_id
 uint8 queue_depth
+uint8 most_recent_image_id
 
 uint8 STATE_IDLE = 0
 uint8 STATE_TRANSMITTING = 1

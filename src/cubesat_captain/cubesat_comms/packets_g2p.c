@@ -138,6 +138,8 @@ int pack_command_and_data(const struct CommandAndData *cmd_and_data, uint8_t *bu
     case Command_StartVideo:
         buf[1] = cmd_and_data->start_video.seconds;
         return 2;
+    case Command_TakePicture:
+        return 1 + pack_phototransform(&cmd_and_data->take_picture, buf + 1);
     case Command_ReCrop:
         buf[1] = cmd_and_data->recrop.original_image;
         pack_phototransform(&cmd_and_data->recrop.transform, buf + 1);
@@ -206,6 +208,8 @@ enum UnpackResult unpack_command_and_data(const uint8_t *buf, int len, struct Co
         } else {
             return UnpackResult_TooShort;
         }
+    case Command_TakePicture:
+        return unpack_phototransform(data_buf, data_len, &cmd_and_data->take_picture);
     case Command_SendArmTargetAndComeBack:
         return unpack_arm_target(data_buf, data_len, &cmd_and_data->send_arm_to_target_and_come_back);
     case Command_SendArmTargetForPhotoAndComeBack:
@@ -225,6 +229,7 @@ enum UnpackResult unpack_command_and_data(const uint8_t *buf, int len, struct Co
     case Command_ExecuteArmSequence:
         if (data_len >= 1) {
             cmd_and_data->execute_arm_sequence.path_id = data_buf[0];
+            return UnpackResult_AllGood;
         } else {
             return UnpackResult_TooShort;
         }
@@ -244,6 +249,7 @@ enum UnpackResult unpack_command_and_data(const uint8_t *buf, int len, struct Co
         return unpack_shell_read_output_request(data_buf, data_len, &cmd_and_data->shell_read_stderr);
     case Command_TelemetryRequest:
         if (data_len > 0) {
+            cmd_and_data->telem_request.telem_type = data_buf[0];
             return UnpackResult_AllGood;
         } else {
             return UnpackResult_TooShort;
@@ -319,14 +325,67 @@ const char *telemetry_type_to_str(enum TelemetryType typ) {
 
 void pack_callsign(const struct Callsign *callsign, uint8_t *buf) { memcpy(buf, callsign->buf, 6); }
 
-int pack_phototransform(const struct PhotoTransform *tform, uint8_t *buf) {
-    uint32_t size = 0;
-    pack_uint16(tform->left, buf);
-    pack_uint16(tform->right, buf + size);
-    pack_uint16(tform->top, buf + size);
-    pack_uint16(tform->bottom, buf + size * 3);
 
-    uint16_t packed_q_and_width = ((tform->quality & 0b111) << 13) | (tform->output_width & 0b11111111111);
-    pack_uint16(packed_q_and_width, buf + size);
-    return +size;
+int pack_phototransform(const struct PhotoTransform *tform, uint8_t *buf){
+  uint32_t size = pack_uint16(tform->left, buf);
+  size+=pack_uint16(tform->right, buf + size);
+  size+=pack_uint16(tform->top, buf + size);
+  size+=pack_uint16(tform->bottom, buf + size);
+  
+  uint16_t packed_q_and_width = ((tform->quality & 0b111) << 13) | (tform->output_width & 0b11111111111);
+  size+=pack_uint16(packed_q_and_width, buf + size);
+  return size;
+}
+
+
+enum UnpackResult unpack_phototransform(const uint8_t *buf,
+                                        uint32_t len,
+                                        struct PhotoTransform *tform){
+  if (len< SIZEOF_PACKED_PHOTOTRANSFORM){
+    return UnpackResult_TooShort;
+  }
+  unpack_uint16(buf, 2, &tform->left);
+  unpack_uint16(buf+2, 2, &tform->right);
+  unpack_uint16(buf+4, 2, &tform->top);
+  unpack_uint16(buf+6, 2, &tform->bottom);
+  uint16_t packed = 0;  
+  unpack_uint16(buf+8, 2, &packed);
+  tform->quality = (packed >> 13) & 0b111;
+  tform ->output_width = packed & 0b1111111111111;
+  return UnpackResult_AllGood;
+
+}
+
+
+
+int pack_image_block_request(const struct ImageBlockRequest *req, uint8_t *buf){
+  size_t off =0 ;
+  buf[off] = req->num;
+  if (req->num > MAX_BLOCKS_PER_REQUEST){
+    buf[off] = MAX_BLOCKS_PER_REQUEST;
+  }
+  off++;
+  for (uint8_t i = 0; i < buf[off]; i++){
+    off+=pack_uint16(req->block_ids[i], buf+off);
+  }
+  return off;
+}
+enum UnpackResult unpack_image_block_request(uint8_t *buf, uint32_t len, struct ImageBlockRequest *req){
+  if (len < 1){
+    return UnpackResult_TooShort;
+  }
+  req->num = buf[0];
+  if (len < req->num * 2 + 1){
+    return UnpackResult_TooShort;
+  }
+  if (req->num > MAX_BLOCKS_PER_REQUEST){
+    return UnpackResult_TooLong;
+  }
+  uint32_t offset = 1;
+  for (uint8_t i = 0; i < req->num; i++){
+    unpack_uint16(buf+offset, len-offset, &req->block_ids[i]);
+    offset+=2;
+  }
+
+  return UnpackResult_AllGood;
 }

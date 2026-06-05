@@ -117,7 +117,7 @@ enum Command {
     Command_UnexpectFlight, // go back to normal waitin on the pad mode
     Command_StartVideo,     // Start Pi cam video
     Command_StopVideo,      // Stop Pi cam video
-
+    Command_TakePicture,
     Command_ReCrop, // refer to original image for an image id, recrop it, save that as the next image_id (rather than the next image id going to a newly taken photo)
 
     Command_SendArmTargetAndComeBack, // go to this position and go back to rest

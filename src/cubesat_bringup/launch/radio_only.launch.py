@@ -27,7 +27,7 @@ def generate_launch_description():
         parameters=[radio_cfg, shared],
         respawn=True,
         respawn_delay=2.0,
-        arguments=["--ros-args", "--log-level", "DEBUG"],
+        arguments=["--ros-args", "--log-level", "INFO"],
     )
     
     return LaunchDescription(

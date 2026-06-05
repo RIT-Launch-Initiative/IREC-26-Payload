@@ -56,7 +56,16 @@ enum UnpackResult unpack_image_data(const uint8_t *buf, uint32_t len, struct Ima
 
 
 int pack_landed_heartbeat(const struct LandedHeartbeatStats *stats, uint8_t *buf){
-  return 5;
+  size_t offset = pack_flight_state_and_status(&stats->state, buf);
+  buf[offset] = stats->next_image_id;
+  buf[offset+1] = stats->next_exec_id;
+  offset+=2;
+  offset+=pack_arm_target(&stats->arm_position, buf+offset);
+  offset+=pack_int16(stats->battery_mV, buf+offset);
+  buf[offset] = stats->motor_temp;
+  buf[offset+1]=stats->radio_temp;
+  offset+=2;
+  return offset;
 }
 
 enum UnpackResult unpack_landed_heartbeat(const uint8_t *buf,

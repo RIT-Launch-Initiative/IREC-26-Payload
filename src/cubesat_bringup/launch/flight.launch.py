@@ -15,9 +15,8 @@ def generate_launch_description():
     pi_io_cfg = os.path.join(pi_io_pkg, "config", "pi_io.yaml")
     stm_bridge_cfg = os.path.join(bringup_pkg, "config", "stm_bridge.yaml")
     radio_cfg = os.path.join(bringup_pkg, "config", "radio.yaml")
+    vision_cfg = os.path.join(bringup_pkg, "config", "watch.yaml")
 
-
-    # TODO
     flight_dir_arg = DeclareLaunchArgument(
         "flight_dir",
         description="Absolute path to the active flight data directory",
@@ -76,6 +75,7 @@ def generate_launch_description():
         arguments=["--ros-args", "--log-level", "WARN"],
     )
 
+    # 1280, 960 def works
     camera = Node(
             package="camera_ros",
             executable="camera_node",
@@ -85,8 +85,8 @@ def generate_launch_description():
             respawn_delay=2.0,
             parameters=[{
                 "camera": "/base/soc/i2c0mux/i2c@1/imx219@10",
-                "width": 1640,
-                "height": 1232,
+                "width": 1280,
+                "height": 800,
                 "format": "YUYV",
                 "FrameDurationLimits": [500000,500000],
                 "AeEnabled": True,

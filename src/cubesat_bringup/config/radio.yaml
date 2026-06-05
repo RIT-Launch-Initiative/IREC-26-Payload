@@ -2,7 +2,7 @@ radio_node:
   ros__parameters:
 
     # LoRa primary profile
-    frequency_hz: 433000000
+    frequency_hz: 425450000
     bandwidth_hz: 125000
     spreading_factor: 9
     coding_rate: 5

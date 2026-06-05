@@ -7,33 +7,28 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 
-
 enum G2PPacketType {
-  G2PPacketType_LinkTest = 0b00,
-  G2PPacketType_LinkControl = 0b01,
-  G2PPacketType_Command = 0b10,
-  G2PPacketType_ImageControl = 0b11,
+    G2PPacketType_LinkTest = 0b00,
+    G2PPacketType_LinkControl = 0b01,
+    G2PPacketType_Command = 0b10,
+    G2PPacketType_ImageControl = 0b11,
 };
 
 struct G2PLinkHeader {
-  enum G2PPacketType packet_type;           // 2 bit
-  uint8_t expected_packets_before_response; // 6 bit [0,MAX_PACKETS_BEFORE_RESPONSE] counts down
-                                            // and then the last may have
-                                            // needs_ack set
+    enum G2PPacketType packet_type;           // 2 bit
+    uint8_t expected_packets_before_response; // 6 bit [0,MAX_PACKETS_BEFORE_RESPONSE] counts down
+                                              // and then the last may have
+                                              // needs_ack set
 };
 
-enum UnpackResult unpack_g2p_link_header(const uint8_t *buf,
-                                         uint32_t len,
-                                         struct G2PLinkHeader *header);
+enum UnpackResult unpack_g2p_link_header(const uint8_t *buf, uint32_t len, struct G2PLinkHeader *header);
 int pack_g2p_link_header(const struct G2PLinkHeader *header, uint8_t *buf);
 
-
 struct StartVideoData {
-  uint8_t seconds;
+    uint8_t seconds;
 };
 
-struct RecropData
-{
+struct RecropData {
     uint8_t original_image;
     struct PhotoTransform transform;
 };
@@ -41,39 +36,39 @@ struct RecropData
 
 #define MAX_DELAY_IN_SEQUENCE 127
 struct WriteArmSequenceData {
-  uint8_t path_id;
-  uint8_t index;
-  bool take_picture;
-  uint8_t delay_before_next; // [0,127] seconds
-  struct ArmTarget target;
+    uint8_t path_id;
+    uint8_t index;
+    bool take_picture;
+    uint8_t delay_before_next; // [0,127] seconds
+    struct ArmTarget target;
 };
 
 struct ReadArmSequenceData {
-  uint8_t path_id;
-  uint8_t index;
+    uint8_t path_id;
+    uint8_t index;
 };
 struct ExecuteArmSequenceData {
-  uint8_t path_id;
+    uint8_t path_id;
 };
 
 // Maybe
 enum ServoOrder {
-  ServoOrder_123 = 0,
-  ServoOrder_132 = 1,
-  ServoOrder_213 = 2,
-  ServoOrder_231 = 3,
-  ServoOrder_312 = 4,
-  ServoOrder_321 = 5,
+    ServoOrder_123 = 0,
+    ServoOrder_132 = 1,
+    ServoOrder_213 = 2,
+    ServoOrder_231 = 3,
+    ServoOrder_312 = 4,
+    ServoOrder_321 = 5,
 };
 
 // Maybe
 struct ManualServoPositionsData {
-  uint8_t servo1;
-  uint8_t servo2;
-  uint8_t servo3;
-  bool return_to_home_after;           // 1 bit
-  bool hold_position_across_movements; // 1 bit
-  enum ServoOrder order;               // 3 bit
+    uint8_t servo1;
+    uint8_t servo2;
+    uint8_t servo3;
+    bool return_to_home_after;           // 1 bit
+    bool hold_position_across_movements; // 1 bit
+    enum ServoOrder order;               // 3 bit
 };
 
 #define MAX_SHELL_EXEC_LEN 128
@@ -86,28 +81,38 @@ struct ShellExecData {
 struct ShellReadOutputRequest {
     uint8_t exec_id; // id of execution to read data from
     uint16_t index;  // index of SHELL_OUTPUT_CHUNK_SIZE byte sized chunk to send.
-    uint8_t length; // length in # of chunks to get at once (MSBit used to say compressed or uncompressed. Maximum of MAX_PACKETS_BEFORE_RESPONSE
+    uint8_t length;  // length in # of chunks to get at once (MSBit used to say compressed or uncompressed. Maximum of
+                     // MAX_PACKETS_BEFORE_RESPONSE
     bool get_compressed; // if set, read from compressed version (packed into length field)
 };
 #define SIZEOF_PACKED_SHELL_READ_OUTPUT_REQ 4
 
 struct TelemetryRequestData {
-  enum TelemetryType telem_type;
+    enum TelemetryType telem_type;
 };
 
 struct ShellExecReturnDataRequest {
     uint8_t exec_id;
 };
 
-struct Callsign
-{
+struct Callsign {
     uint8_t buf[6];
 };
 #define SIZEOF_PACKED_CALLSIGN 6
 void pack_callsign(const struct Callsign *callsign, uint8_t *buf);
 
-struct CommandAndData
+#define MAX_BLOCKS_PER_REQUEST 60
+struct ImageBlockRequest
 {
+    uint8_t num; // max 60
+    uint16_t block_ids[MAX_BLOCKS_PER_REQUEST];
+};
+int pack_image_block_request(const struct ImageBlockRequest *req, uint8_t *buf);
+enum UnpackResult unpack_image_block_request(uint8_t *buf,
+                                             uint32_t len,
+                                             struct ImageBlockRequest *req);
+
+struct CommandAndData {
     enum Command command;
     union {
         // ForceManual
@@ -116,6 +121,7 @@ struct CommandAndData
         // UnexpectFlight
         struct StartVideoData start_video;
         // StopVideo
+        struct PhotoTransform take_picture;
         struct RecropData recrop;
 
         struct ArmTarget send_arm_to_target_and_come_back;
@@ -144,9 +150,7 @@ struct CommandAndData
 int pack_command_and_data(const struct CommandAndData *cmd_and_data, uint8_t *buf);
 
 // returns true if valid, false if invalid
-enum UnpackResult unpack_command_and_data(const uint8_t *buf,
-                                          int len,
-                                          struct CommandAndData *cmd_and_data);
+enum UnpackResult unpack_command_and_data(const uint8_t *buf, int len, struct CommandAndData *cmd_and_data);
 
 #ifdef __cplusplus
 }

@@ -24,18 +24,17 @@ add_executable(captain_node
   src/flipping_state.cpp
   src/status_accumulator.cpp
   src/packet_writer.cpp
-
-  cubesat_comms/lora.c
-  cubesat_comms/packets_p2g.c
-  cubesat_comms/packets_g2p.c
 )
 
+add_subdirectory(cubesat_comms)
+target_link_libraries(captain_node cubesat_comms)
 
 
 
 target_include_directories(captain_node PRIVATE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/cubesat_comms/include>)
+
 ament_target_dependencies(captain_node rclcpp rclcpp_action cubesat_msgs)
 
 install(TARGETS captain_node

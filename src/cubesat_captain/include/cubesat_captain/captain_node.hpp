@@ -6,6 +6,9 @@
 #include "cubesat_msgs/msg/power_sample.hpp"
 #include "cubesat_msgs/msg/telemetry_type.hpp"
 #include "cubesat_msgs/msg/radio_packet.hpp"
+#include "cubesat_msgs/msg/image_request.hpp"
+#include "cubesat_msgs/msg/radio_state.hpp"
+
 #include "cubesat_msgs/srv/request_state_change.hpp"
 #include "cubesat_msgs/srv/set_buzzer.hpp"
 #include "cubesat_msgs/srv/telemetry_request.hpp"
@@ -71,6 +74,10 @@ class CaptainNode : public rclcpp::Node {
     rclcpp::Subscription<cubesat_msgs::msg::PowerSample>::SharedPtr power_sub;
     rclcpp::Subscription<cubesat_msgs::msg::GpsSample>::SharedPtr gnss_sub;
     rclcpp::Subscription<cubesat_msgs::msg::RadioPacket>::SharedPtr radio_sub;
+    rclcpp::Subscription<cubesat_msgs::msg::ImageMetadata>::SharedPtr metadata_sub;
+
+
+    rclcpp::Publisher<cubesat_msgs::msg::ImageRequest>::SharedPtr image_req_pub;
 
     rclcpp::Publisher<cubesat_msgs::msg::FlightState>::SharedPtr state_pub;
 

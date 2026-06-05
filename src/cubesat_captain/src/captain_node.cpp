@@ -33,6 +33,9 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     }
 
     state_pub = create_publisher<cubesat_msgs::msg::FlightState>("pi/flight_state", 10);
+    image_req_pub = create_publisher<cubesat_msgs::msg::ImageRequest>("/watcher/image_request", 10);
+
+
     imu_sub = create_subscription<cubesat_msgs::msg::AccelSample>(
         "pi/lis3dh", 10, std::bind(&CaptainNode::handle_imu, this, std::placeholders::_1));
 
@@ -190,6 +193,10 @@ void CaptainNode::emit_telemetry(cubesat_msgs::msg::TelemetryType telem_type) {
 
     request->data.resize(255);
     int size = packet_for_telemetry(status, telem_type, request->data.data());
+    if (size < 0){
+        RCLCPP_WARN(get_logger(), "Invalid request for telemetry. not sending");
+        return;
+    }
     request->data.resize(size);
 
     send_packet_client->async_send_request(request);

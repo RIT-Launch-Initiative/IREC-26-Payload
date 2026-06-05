@@ -103,6 +103,8 @@ int packet_for_telemetry(const StatusAccumulator &status, cubesat_msgs::msg::Tel
         resp.telemetry.telem_type = TelemetryType_Power;
         packet_for_power(status, resp.telemetry);
         break;
+    default: 
+        return -1;
     };
 
     int actual_size = pack_p2g_link_header(&header, span);

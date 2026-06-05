@@ -26,6 +26,7 @@ public:
     bool setSleepMode();
     bool waitForInterrupt(std::chrono::milliseconds timeout);
 
+    void dumpStatus();
 private:
     struct Impl;
     Impl* impl;
