@@ -26,7 +26,8 @@ enum StatusBit {
     StatusBit_WristServoEn = 6,     // Efuse enable
     StatusBit_FlipServoEn = 7,      // 8.4V Buck enable
     StatusBit_MotorEn = 8,          // not sleeping
-    StatusBit_Overtemp = 9,
+    StatusBitCantTrustImuLink = 9, // if we're on our side, the top joint doesnt know where it is
+    StatusBitEncodersNotUpdating = 10,
 
     // identify what kind of response this is 0 - 31
     StatusBit_RType0 = 11,

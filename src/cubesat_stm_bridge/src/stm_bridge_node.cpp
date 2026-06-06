@@ -69,11 +69,14 @@ void StmBridgeNode::FillArmStatusFlags(StmBridge::StatusWord word, cubesat_msgs:
     arm_state.state = state_u8;
 
     status.state = arm_state;
+    status.booted = CheckStatusBit(word, StatusBit_Booted);
     status.arm_move_failed = CheckStatusBit(word, StatusBit_MovingArmFailed);
     status.wrist_servo_en = CheckStatusBit(word, StatusBit_WristServoEn);
     status.flip_servo_en = CheckStatusBit(word, StatusBit_FlipServoEn);
     status.motor_en = CheckStatusBit(word, StatusBit_MotorEn);
-    status.overtemp = CheckStatusBit(word, StatusBit_Overtemp);
+    status.cant_trust_imu_link = CheckStatusBit(word, StatusBitCantTrustImuLink);
+    status.encoders_not_updating = CheckStatusBit(word, StatusBitEncodersNotUpdating);
+    
 }
 
 void StmBridgeNode::onStatusTimer() {

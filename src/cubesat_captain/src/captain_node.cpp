@@ -12,7 +12,12 @@ namespace cubesat_captain {
 
 CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     : rclcpp::Node("captain_node", options), status{},
-      levers{status, rclcpp_action::create_client<cubesat_msgs::action::FlipServoAction>(this, "/stm/flip_servo"),
+      levers{status,
+             create_client<cubesat_msgs::srv::JogMotor>("/stm/jog_motor"),
+             create_client<cubesat_msgs::srv::HoldShut>("/stm/hold_shut"),
+             create_client<cubesat_msgs::srv::ZeroArm>("/stm/zero_arm"),
+             rclcpp_action::create_client<cubesat_msgs::action::ExtendArm>(this, "/stm/flip_servo"),
+             rclcpp_action::create_client<cubesat_msgs::action::FlipServoAction>(this, "/stm/flip_servo"),
              [this](State state) { this->change_internal_state(state); }} {
     flight_dir = declare_parameter<std::string>("flight_dir", "~/unconfigured_flight_dir");
     load_startup_parameters();
@@ -34,7 +39,7 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
 
     state_pub = create_publisher<cubesat_msgs::msg::FlightState>("pi/flight_state", 10);
     image_req_pub = create_publisher<cubesat_msgs::msg::ImageRequest>("/watcher/image_request", 10);
-    
+
     radio_packet_pub = create_publisher<cubesat_msgs::msg::RadioPacket>("/radio/tx_packet", 68);
 
     imu_sub = create_subscription<cubesat_msgs::msg::AccelSample>(
@@ -51,7 +56,7 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
 
     radio_state_sub = create_subscription<cubesat_msgs::msg::RadioState>(
         "radio/state", 10, std::bind(&CaptainNode::handle_radio_state, this, std::placeholders::_1));
-    
+
     image_metadata_sub = create_subscription<cubesat_msgs::msg::ImageMetadata>(
         "watcher/image_metadata", 10, std::bind(&CaptainNode::handle_image_metadata, this, std::placeholders::_1));
 
@@ -215,13 +220,14 @@ void CaptainNode::requestTelemetry(const std::shared_ptr<cubesat_msgs::srv::Tele
     response->success = true;
 }
 
-void CaptainNode::handle_radio_state(const cubesat_msgs::msg::RadioState::SharedPtr state) {}
+void CaptainNode::handle_radio_state(const cubesat_msgs::msg::RadioState::SharedPtr state) {
+    RCLCPP_INFO(get_logger(), "Radio state changed: queue length %d", state->queue_depth);
+}
 
 void CaptainNode::handle_image_metadata(const cubesat_msgs::msg::ImageMetadata::SharedPtr meta) {
     RCLCPP_INFO(get_logger(), "Image Metadata delivered for image %d", (int)meta->image_id);
     status.update_last_image(meta->image_id);
     emit_image_metadata(*meta);
 }
-
 
 } // namespace cubesat_captain

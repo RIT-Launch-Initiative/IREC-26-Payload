@@ -10,4 +10,5 @@ bool arm_move_failed
 bool wrist_servo_en
 bool flip_servo_en
 bool motor_en
-bool overtemp
+bool cant_trust_imu_link
+bool encoders_not_updating

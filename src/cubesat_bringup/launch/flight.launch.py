@@ -81,7 +81,7 @@ parameters=[radio_cfg, shared],
             name="camera",
             output="screen",
             respawn=True,
-            respawn_delay=10.0,
+            respawn_delay=20.0,
             parameters=[{
                 "camera": "/base/soc/i2c0mux/i2c@1/imx219@10",
                 "width": 1280,

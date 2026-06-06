@@ -1,12 +1,20 @@
 #pragma once
 
 #include "cubesat_captain/status_accumulator.hpp"
-#include "cubesat_msgs/action/flip_servo_action.hpp"
+
 #include "cubesat_msgs/msg/accel_sample.hpp"
 #include "cubesat_msgs/msg/arm_status.hpp"
 #include "cubesat_msgs/msg/flight_state.hpp"
 #include "cubesat_msgs/msg/gps_sample.hpp"
 #include "cubesat_msgs/msg/power_sample.hpp"
+
+#include "cubesat_msgs/srv/jog_motor.hpp"
+#include "cubesat_msgs/srv/hold_shut.hpp"
+#include "cubesat_msgs/srv/zero_arm.hpp"
+
+#include "cubesat_msgs/action/flip_servo_action.hpp"
+#include "cubesat_msgs/action/extend_arm.hpp"
+
 #include "rclcpp_action/rclcpp_action.hpp"
 #include <rclcpp/rclcpp.hpp>
 
@@ -16,7 +24,12 @@ namespace cubesat_captain {
 struct Levers {
     StatusAccumulator &status;
 
-    rclcpp_action::Client<cubesat_msgs::action::FlipServoAction>::SharedPtr flip_servo_action_client;
+    rclcpp::Client<cubesat_msgs::srv::JogMotor>::SharedPtr jog_motor_client; // /stm/jog_motor
+    rclcpp::Client<cubesat_msgs::srv::HoldShut>::SharedPtr hold_shut_client;// /stm/hold_shut
+    rclcpp::Client<cubesat_msgs::srv::ZeroArm>::SharedPtr zero_arm_client; // /stm/zero_arm
+
+    rclcpp_action::Client<cubesat_msgs::action::ExtendArm>::SharedPtr extend_arm_client; //stm/move_arm
+    rclcpp_action::Client<cubesat_msgs::action::FlipServoAction>::SharedPtr flip_servo_action_client; // /stm/flip_servo
     // things an expert can do
     std::function<void(State state)> goto_state;
 };

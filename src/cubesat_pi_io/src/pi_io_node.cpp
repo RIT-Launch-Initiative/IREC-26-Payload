@@ -120,11 +120,11 @@ void PiIoNode::onAccelTimer() {
     cubesat_msgs::msg::AccelSample msg;
     msg.stamp = now();
 
-    const double cos_n45 = 0.7071067811865475;
-    const double sin_n45 = -0.7071067811865475;
+    const double cos_45 = 0.7071067811865475;
+    const double sin_45 = 0.7071067811865475;
 
-    msg.ax = a->ax_mps2 * cos_n45 - a->ay_mps2 * sin_n45;
-    msg.ay = a->ax_mps2 * sin_n45 + a->ay_mps2 * cos_n45;
+    msg.ax = a->ax_mps2 * cos_45 - a->ay_mps2 * sin_45;
+    msg.ay = a->ax_mps2 * sin_45 + a->ay_mps2 * cos_45;
     msg.az = a->az_mps2;
 
     accel_pub->publish(msg);
