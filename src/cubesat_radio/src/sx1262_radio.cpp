@@ -172,6 +172,10 @@ bool Sx1262Radio::open() {
     }
     RCLCPP_WARN(logger, "Errors on post Cal: %d", (int)errors);
 
+    // pa_duty_cycle
+    // hp_max = 0 to 7
+    // device_sel (always 0)
+    // pa_lut (always 1)
     sx126x_pa_cfg_params_t pa_config{0x04, 0x07, 0x00, 0x01};
     if (sx126x_set_pa_cfg(&impl->hal, &pa_config) != SX126X_STATUS_OK) {
         close_linux_hal(impl->hal);
@@ -197,6 +201,7 @@ bool Sx1262Radio::configure(const RadioProfile &profile) {
     if (errors != 0) {
         RCLCPP_WARN(logger, "Errors on pre set params: %d", (int)errors);
     }
+    RCLCPP_INFO(logger, "Configuring %d dbm", (int)profile.tx_power_dbm);
 
     if (sx126x_set_standby(&impl->hal, SX126X_STANDBY_CFG_RC) != SX126X_STATUS_OK ||
         sx126x_set_pkt_type(&impl->hal, SX126X_PKT_TYPE_LORA) != SX126X_STATUS_OK ||
@@ -296,7 +301,7 @@ bool Sx1262Radio::send(const std::vector<uint8_t> &data) {
     sx126x_chip_status_t post_tx_status;
     sx126x_get_status(&impl->hal, &post_tx_status);
 
-    RCLCPP_INFO(logger, "Radio Status post tx pre irq: cmd %d, mode %d", (int)post_tx_status.cmd_status,
+    RCLCPP_DEBUG(logger, "Radio Status post tx pre irq: cmd %d, mode %d", (int)post_tx_status.cmd_status,
                 (int)post_tx_status.chip_mode);
 
     sx126x_irq_mask_t irq = 0;
@@ -305,13 +310,13 @@ bool Sx1262Radio::send(const std::vector<uint8_t> &data) {
     const bool success = got_irq && ((irq & SX126X_IRQ_TX_DONE) != 0);
 
     sx126x_get_status(&impl->hal, &post_tx_status);
-    RCLCPP_INFO(logger, "Radio Status post irq pre set stbd: cmd %d, mode %d", (int)post_tx_status.cmd_status,
+    RCLCPP_DEBUG(logger, "Radio Status post irq pre set stbd: cmd %d, mode %d", (int)post_tx_status.cmd_status,
                 (int)post_tx_status.chip_mode);
 
     sx126x_set_standby(&impl->hal, SX126X_STANDBY_CFG_XOSC);
 
     sx126x_get_status(&impl->hal, &post_tx_status);
-    RCLCPP_INFO(logger, "Radio Status post set stdby pre rx: cmd %d, mode %d", (int)post_tx_status.cmd_status,
+    RCLCPP_DEBUG(logger, "Radio Status post set stdby pre rx: cmd %d, mode %d", (int)post_tx_status.cmd_status,
                 (int)post_tx_status.chip_mode);
 
     return sx126x_set_rx_with_timeout_in_rtc_step(&impl->hal, SX126X_RX_CONTINUOUS) == SX126X_STATUS_OK;
@@ -361,7 +366,7 @@ void Sx1262Radio::dumpStatus() {
     sx126x_chip_status_t status;
     sx126x_get_status(&impl->hal, &status);
 
-    RCLCPP_INFO(logger, "Radio Status: cmd %d, mode %d", (int)status.cmd_status, (int)status.chip_mode);
+    RCLCPP_DEBUG(logger, "Radio Status: cmd %d, mode %d", (int)status.cmd_status, (int)status.chip_mode);
 }
 
 bool Sx1262Radio::setReceiveMode() {

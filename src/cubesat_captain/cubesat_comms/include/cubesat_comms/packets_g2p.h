@@ -104,6 +104,7 @@ void pack_callsign(const struct Callsign *callsign, uint8_t *buf);
 #define MAX_BLOCKS_PER_REQUEST 60
 struct ImageBlockRequest
 {
+    uint8_t image_id;
     uint8_t num; // max 60
     uint16_t block_ids[MAX_BLOCKS_PER_REQUEST];
 };
@@ -122,8 +123,10 @@ struct CommandAndData {
         struct StartVideoData start_video;
         // StopVideo
         struct PhotoTransform take_picture;
+        uint8_t metadata_ask_image_id;
         struct RecropData recrop;
 
+        struct ArmTarget send_arm_to_target;
         struct ArmTarget send_arm_to_target_and_come_back;
         struct ArmTarget send_arm_to_target_for_photo_and_come_back;
         struct ArmTarget send_idle_position;

@@ -6,7 +6,11 @@ radio_node:
     bandwidth_hz: 125000
     spreading_factor: 9
     coding_rate: 5
-    tx_power_dbm: 22
+    tx_power_dbm: -8
+    # were using high power pretty sure
+    # 
+    # -17 to 14 for low power PA
+    # -9 to +22 for high power PA
     preamble_length: 8
 
     # SPI transport

@@ -7,6 +7,7 @@
 #include "cubesat_msgs/msg/telemetry_type.hpp"
 #include "cubesat_msgs/msg/radio_packet.hpp"
 #include "cubesat_msgs/msg/image_request.hpp"
+#include "cubesat_msgs/msg/image_metadata.hpp"
 #include "cubesat_msgs/msg/radio_state.hpp"
 
 #include "cubesat_msgs/srv/request_state_change.hpp"
@@ -31,7 +32,7 @@ class CaptainNode : public rclcpp::Node {
     // - radio asks for manual
 
     /**
-     * Creates flag file that tells launch file to start you as
+     * Creates flag file that tells launch file to start you in a new directory
      */
     void flag_for_new_flight_dir();
     // hit that systemctl restart to rerun launch script
@@ -50,11 +51,18 @@ class CaptainNode : public rclcpp::Node {
     Expert *expert_for_state(State state);
 
     void emit_telemetry(cubesat_msgs::msg::TelemetryType telem_type);
+    void emit_imagedata(uint8_t image_id, const std::vector<uint16_t> &blocks);
+    void emit_image_metadata(const cubesat_msgs::msg::ImageMetadata &metadata);
+    
+    bool loadImageMetadata(std::string path, cubesat_msgs::msg::ImageMetadata &metadata);
+
 
     void handle_imu(const cubesat_msgs::msg::AccelSample::SharedPtr sample);
     void handle_power(const cubesat_msgs::msg::PowerSample::SharedPtr sample);
     void handle_gnss(const cubesat_msgs::msg::GpsSample::SharedPtr sample);
     void handle_packet(const cubesat_msgs::msg::RadioPacket::SharedPtr packet);
+    void handle_radio_state(const cubesat_msgs::msg::RadioState::SharedPtr state);
+    void handle_image_metadata(const cubesat_msgs::msg::ImageMetadata::SharedPtr state);
 
     void onHeartbeatTimer();
     void onCallsignTimer(); //TODO transmit callsign every once and a while
@@ -74,9 +82,12 @@ class CaptainNode : public rclcpp::Node {
     rclcpp::Subscription<cubesat_msgs::msg::PowerSample>::SharedPtr power_sub;
     rclcpp::Subscription<cubesat_msgs::msg::GpsSample>::SharedPtr gnss_sub;
     rclcpp::Subscription<cubesat_msgs::msg::RadioPacket>::SharedPtr radio_sub;
-    rclcpp::Subscription<cubesat_msgs::msg::ImageMetadata>::SharedPtr metadata_sub;
+
+    rclcpp::Subscription<cubesat_msgs::msg::RadioState>::SharedPtr radio_state_sub;
+    rclcpp::Subscription<cubesat_msgs::msg::ImageMetadata>::SharedPtr image_metadata_sub;
 
 
+    rclcpp::Publisher<cubesat_msgs::msg::RadioPacket>::SharedPtr radio_packet_pub;
     rclcpp::Publisher<cubesat_msgs::msg::ImageRequest>::SharedPtr image_req_pub;
 
     rclcpp::Publisher<cubesat_msgs::msg::FlightState>::SharedPtr state_pub;
@@ -87,7 +98,6 @@ class CaptainNode : public rclcpp::Node {
 
     // services that we are the client for
     rclcpp::Client<cubesat_msgs::srv::SetBuzzer>::SharedPtr set_buzzer_client;
-    rclcpp::Client<cubesat_msgs::srv::SendRadioPacket>::SharedPtr send_packet_client;
 };
 
 } // namespace cubesat_captain

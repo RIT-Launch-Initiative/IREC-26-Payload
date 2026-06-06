@@ -34,7 +34,8 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
 
     state_pub = create_publisher<cubesat_msgs::msg::FlightState>("pi/flight_state", 10);
     image_req_pub = create_publisher<cubesat_msgs::msg::ImageRequest>("/watcher/image_request", 10);
-
+    
+    radio_packet_pub = create_publisher<cubesat_msgs::msg::RadioPacket>("/radio/tx_packet", 68);
 
     imu_sub = create_subscription<cubesat_msgs::msg::AccelSample>(
         "pi/lis3dh", 10, std::bind(&CaptainNode::handle_imu, this, std::placeholders::_1));
@@ -48,6 +49,11 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     radio_sub = create_subscription<cubesat_msgs::msg::RadioPacket>(
         "radio/rx_packet", 10, std::bind(&CaptainNode::handle_packet, this, std::placeholders::_1));
 
+    radio_state_sub = create_subscription<cubesat_msgs::msg::RadioState>(
+        "radio/state", 10, std::bind(&CaptainNode::handle_radio_state, this, std::placeholders::_1));
+    
+    image_metadata_sub = create_subscription<cubesat_msgs::msg::ImageMetadata>(
+        "watcher/image_metadata", 10, std::bind(&CaptainNode::handle_image_metadata, this, std::placeholders::_1));
 
     this->request_state_change_service = create_service<cubesat_msgs::srv::RequestStateChange>(
         "/pi/change_state",
@@ -58,7 +64,6 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
         std::bind(&CaptainNode::requestTelemetry, this, std::placeholders::_1, std::placeholders::_2));
 
     this->set_buzzer_client = create_client<cubesat_msgs::srv::SetBuzzer>("/pi/buzzer");
-    this->send_packet_client = create_client<cubesat_msgs::srv::SendRadioPacket>("/radio/send_packet");
 
     heartbeat_timer =
         create_wall_timer(std::chrono::milliseconds((int)(1000 * status.current_parameters.pad_heartbeat_s)),
@@ -176,11 +181,6 @@ void CaptainNode::handle_gnss(const cubesat_msgs::msg::GpsSample::SharedPtr samp
     status.update_gps_sample(*sample);
 }
 
-
-
-
-
-
 Expert *CaptainNode::expert_for_state(State state) {
     if (state > State::NumStates) {
         return nullptr;
@@ -189,17 +189,17 @@ Expert *CaptainNode::expert_for_state(State state) {
 }
 
 void CaptainNode::emit_telemetry(cubesat_msgs::msg::TelemetryType telem_type) {
-    auto request = std::make_shared<cubesat_msgs::srv::SendRadioPacket::Request>();
+    cubesat_msgs::msg::RadioPacket pkt;
+    pkt.data.resize(255);
+    int size = packet_for_telemetry(status, telem_type, pkt.data.data());
 
-    request->data.resize(255);
-    int size = packet_for_telemetry(status, telem_type, request->data.data());
-    if (size < 0){
+    if (size < 0) {
         RCLCPP_WARN(get_logger(), "Invalid request for telemetry. not sending");
         return;
     }
-    request->data.resize(size);
+    pkt.data.resize(size);
 
-    send_packet_client->async_send_request(request);
+    radio_packet_pub->publish(pkt);
 }
 
 void CaptainNode::onHeartbeatTimer() {
@@ -210,9 +210,18 @@ void CaptainNode::onHeartbeatTimer() {
 
 void CaptainNode::requestTelemetry(const std::shared_ptr<cubesat_msgs::srv::TelemetryRequest::Request> request,
                                    std::shared_ptr<cubesat_msgs::srv::TelemetryRequest::Response> response) {
-    RCLCPP_INFO(get_logger(), "Telemtery Requested: type %d", request->telemetry.telem_id);
+    RCLCPP_INFO(get_logger(), "Telemetry Requested: type %d", request->telemetry.telem_id);
     emit_telemetry(request->telemetry);
     response->success = true;
 }
+
+void CaptainNode::handle_radio_state(const cubesat_msgs::msg::RadioState::SharedPtr state) {}
+
+void CaptainNode::handle_image_metadata(const cubesat_msgs::msg::ImageMetadata::SharedPtr meta) {
+    RCLCPP_INFO(get_logger(), "Image Metadata delivered for image %d", (int)meta->image_id);
+    status.update_last_image(meta->image_id);
+    emit_image_metadata(*meta);
+}
+
 
 } // namespace cubesat_captain

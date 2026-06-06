@@ -124,12 +124,10 @@ int pack_command_and_data(const struct CommandAndData *cmd_and_data, uint8_t *bu
     case Command_ForceManual:
     case Command_ForceFlight:
     case Command_ExpectFlight:
-    case Command_UnexpectFlight:
-    case Command_ClearFlightDANGER:
-    case Command_CancelExecutingArmSequence:
+    case Command_BackToPad:
+    case Command_NewFlightDanger:
     case Command_ZeroShoulder_AssumeOpen:
     case Command_RunOpenSequence:
-    case Command_GetFlightNumber:
     case Command_StopVideo:
         return 1;
     case Command_Callsign:
@@ -140,6 +138,10 @@ int pack_command_and_data(const struct CommandAndData *cmd_and_data, uint8_t *bu
         return 2;
     case Command_TakePicture:
         return 1 + pack_phototransform(&cmd_and_data->take_picture, buf + 1);
+
+    case Command_ImageMetadata:
+        buf[1] = cmd_and_data->metadata_ask_image_id;
+        return 2;
     case Command_ReCrop:
         buf[1] = cmd_and_data->recrop.original_image;
         pack_phototransform(&cmd_and_data->recrop.transform, buf + 1);
@@ -151,15 +153,6 @@ int pack_command_and_data(const struct CommandAndData *cmd_and_data, uint8_t *bu
         return 1 + pack_arm_target(&cmd_and_data->send_arm_to_target_for_photo_and_come_back, &buf[1]);
     case Command_SendIdlePosition:
         return 1 + pack_arm_target(&cmd_and_data->send_idle_position, &buf[1]);
-    case Command_WriteArmSequence:
-        return 1 + pack_write_arm_sequence_data(&cmd_and_data->write_arm_sequence, &buf[1]);
-    case Command_ReadArmSequence:
-        buf[1] = cmd_and_data->read_arm_sequence.path_id;
-        buf[2] = cmd_and_data->read_arm_sequence.index;
-        return 3;
-    case Command_ExecuteArmSequence:
-        buf[1] = cmd_and_data->execute_arm_sequence.path_id;
-        return 2;
     case Command_ShellExec:
         return 1 + pack_shell_exec(&cmd_and_data->shell_exec, buf);
     case Command_ShellExecInfo:
@@ -193,12 +186,10 @@ enum UnpackResult unpack_command_and_data(const uint8_t *buf, int len, struct Co
     case Command_ForceManual:
     case Command_ForceFlight:
     case Command_ExpectFlight:
-    case Command_UnexpectFlight:
-    case Command_ClearFlightDANGER:
-    case Command_CancelExecutingArmSequence:
+    case Command_BackToPad:
+    case Command_NewFlightDanger:
     case Command_ZeroShoulder_AssumeOpen:
     case Command_RunOpenSequence:
-    case Command_GetFlightNumber:
     case Command_StopVideo:
         return UnpackResult_AllGood; // no data with these messages
     case Command_StartVideo:
@@ -210,30 +201,21 @@ enum UnpackResult unpack_command_and_data(const uint8_t *buf, int len, struct Co
         }
     case Command_TakePicture:
         return unpack_phototransform(data_buf, data_len, &cmd_and_data->take_picture);
+    case Command_ImageMetadata:
+      if (data_len>=1){
+        cmd_and_data->metadata_ask_image_id = data_buf[0];
+        return UnpackResult_AllGood;
+      } else {
+        return UnpackResult_TooShort;
+      }
+
+
     case Command_SendArmTargetAndComeBack:
         return unpack_arm_target(data_buf, data_len, &cmd_and_data->send_arm_to_target_and_come_back);
     case Command_SendArmTargetForPhotoAndComeBack:
         return unpack_arm_target(data_buf, data_len, &cmd_and_data->send_arm_to_target_for_photo_and_come_back);
     case Command_SendIdlePosition:
         return unpack_arm_target(data_buf, data_len, &cmd_and_data->send_idle_position);
-    case Command_WriteArmSequence:
-        return unpack_write_arm_sequence_data(data_buf, data_len, &cmd_and_data->write_arm_sequence);
-    case Command_ReadArmSequence:
-        if (data_len >= 2) {
-            cmd_and_data->read_arm_sequence.path_id = data_buf[0];
-            cmd_and_data->read_arm_sequence.index = data_buf[1];
-            return UnpackResult_AllGood;
-        } else {
-            return UnpackResult_TooShort;
-        }
-    case Command_ExecuteArmSequence:
-        if (data_len >= 1) {
-            cmd_and_data->execute_arm_sequence.path_id = data_buf[0];
-            return UnpackResult_AllGood;
-        } else {
-            return UnpackResult_TooShort;
-        }
-
     case Command_ShellExec:
         return unpack_shell_exec(data_buf, data_len, &cmd_and_data->shell_exec);
     case Command_ShellExecInfo:
@@ -287,6 +269,23 @@ enum UnpackResult unpack_uint16(const uint8_t *buf, uint32_t len, uint16_t *i) {
 
     return UnpackResult_AllGood;
 }
+
+int pack_uint32(uint32_t i, uint8_t *buf) {
+    memcpy(buf, &i, sizeof(uint32_t));
+    return sizeof(uint32_t);
+}
+enum UnpackResult unpack_uint32(const uint8_t *buf, uint32_t len, uint32_t *i) {
+    if (len < 2) {
+        return UnpackResult_TooShort;
+    }
+
+    memcpy(i, buf, sizeof(uint32_t));
+
+    return UnpackResult_AllGood;
+}
+
+
+
 
 int pack_float(float f, uint8_t *buf) {
     memcpy(buf, &f, sizeof(float));
@@ -359,29 +358,30 @@ enum UnpackResult unpack_phototransform(const uint8_t *buf,
 
 
 int pack_image_block_request(const struct ImageBlockRequest *req, uint8_t *buf){
-  size_t off =0 ;
-  buf[off] = req->num;
+  buf[0] = req->image_id;
+  buf[1] = req->num;
   if (req->num > MAX_BLOCKS_PER_REQUEST){
-    buf[off] = MAX_BLOCKS_PER_REQUEST;
+    buf[1] = MAX_BLOCKS_PER_REQUEST;
   }
-  off++;
-  for (uint8_t i = 0; i < buf[off]; i++){
+  size_t off =2;
+  for (uint8_t i = 0; i < buf[1]; i++){
     off+=pack_uint16(req->block_ids[i], buf+off);
   }
   return off;
 }
 enum UnpackResult unpack_image_block_request(uint8_t *buf, uint32_t len, struct ImageBlockRequest *req){
-  if (len < 1){
+  if (len < 2){
     return UnpackResult_TooShort;
   }
-  req->num = buf[0];
-  if (len < req->num * 2 + 1){
+  req->image_id = buf[0];
+  req->num = buf[1];
+  if (len < req->num * 2 + 2){
     return UnpackResult_TooShort;
   }
   if (req->num > MAX_BLOCKS_PER_REQUEST){
     return UnpackResult_TooLong;
   }
-  uint32_t offset = 1;
+  uint32_t offset = 2;
   for (uint8_t i = 0; i < req->num; i++){
     unpack_uint16(buf+offset, len-offset, &req->block_ids[i]);
     offset+=2;

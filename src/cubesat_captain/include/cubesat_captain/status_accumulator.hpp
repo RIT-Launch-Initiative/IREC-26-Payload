@@ -37,6 +37,7 @@ class StatusAccumulator {
     void update_arm_status(const cubesat_msgs::msg::ArmStatus &status);
     void update_gps_sample(const cubesat_msgs::msg::GpsSample &sample);
     void update_power_sample(const cubesat_msgs::msg::PowerSample &sample);
+    void update_last_image(uint8_t just_taken_image);
 
     void update_flight_state(const cubesat_msgs::msg::FlightState &);
     State active_state() const;
@@ -55,6 +56,7 @@ class StatusAccumulator {
     cubesat_msgs::msg::PowerSample last_power_sample{};
 
     cubesat_msgs::msg::AccelSample last_base_accel{};
+    uint8_t last_image_id;
 
   private:
 };

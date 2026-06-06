@@ -19,7 +19,7 @@ RadioNode::RadioNode(const rclcpp::NodeOptions &options) : rclcpp::Node("radio_n
     rxPacketPub = create_publisher<cubesat_msgs::msg::RadioPacket>("radio/rx_packet", 10);
 
     txPacketSub = create_subscription<cubesat_msgs::msg::RadioPacket>(
-        "radio/tx_packet", 10, std::bind(&RadioNode::handleTxPacket, this, std::placeholders::_1));
+        "radio/tx_packet", 68, std::bind(&RadioNode::handleTxPacket, this, std::placeholders::_1));
 
     sendRadioPacketSrv = create_service<cubesat_msgs::srv::SendRadioPacket>(
         "radio/send_packet",
@@ -145,12 +145,11 @@ void RadioNode::radioLoop() {
     bool stillHaveWork = false;
 
     while (rclcpp::ok()) {
+        // if still have work, iterate so we catch new events but don't block
         if (!stillHaveWork) {
-            RCLCPP_INFO(get_logger(), "Waiting for work");
+            RCLCPP_DEBUG(get_logger(), "Waiting for work");
             rsm.radio_flag_signal.wait(0); // handled everything last iter, wait for anything
         }
-        RCLCPP_INFO(get_logger(), "work recievied");
-        // if still have work, iterate so we catch new events but don't block
 
         uint32_t status = rsm.radio_flag_signal.load();
         rsm.radio_flag_signal.store(0);
@@ -236,6 +235,7 @@ void RadioNode::radioLoop() {
         }
 
         if (!rsm.isLinkTesting) {
+            RCLCPP_WARN(get_logger() ,"Num transmitted in a row %d queue size %ld", rsm.numTransmittedInARow, about_to_send.size());
             if (rsm.state == RSM::NormalState::Idle) {
                 if (about_to_send.size() > 0) {
                     radio->send(about_to_send.front());

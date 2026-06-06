@@ -14,13 +14,18 @@ void StatusAccumulator::update_gps_sample(const cubesat_msgs::msg::GpsSample &sa
 void StatusAccumulator::update_power_sample(const cubesat_msgs::msg::PowerSample &sample) {
     last_power_sample = sample;
 }
+
+void StatusAccumulator::update_last_image(uint8_t just_taken_image) {
+    last_image_id = std::max(just_taken_image, last_image_id);
+}
+
 void StatusAccumulator::update_base_accel(const cubesat_msgs::msg::AccelSample &sample) { last_base_accel = sample; }
-State StatusAccumulator::active_state()const { return (State)current_state.state; }
+State StatusAccumulator::active_state() const { return (State)current_state.state; }
 
 bool StatusAccumulator::has_gps() const { return last_gps_sample.fix_type != 0; }
 void StatusAccumulator::last_good_gps_position(float *lat, float *lon, float *alt) const {
-    
-    if (has_gps()){
+
+    if (has_gps()) {
         *lat = last_gps_sample.latitude;
         *lon = last_gps_sample.longitude;
         *alt = last_gps_sample.altitude_m;

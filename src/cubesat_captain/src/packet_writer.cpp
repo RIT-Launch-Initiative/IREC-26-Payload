@@ -54,7 +54,24 @@ void packet_for_flight_heartbeat(const StatusAccumulator &status, FlightHeartbea
     telem.radio_temp = 55; // TODO real
 }
 void packet_for_landed_heartbeat(const StatusAccumulator &status, LandedHeartbeatStats &telem) {
-    
+    telem.state = flight_state(status);
+    telem.next_image_id = status.last_image_id;
+    telem.next_exec_id = 0;
+    telem.arm_position.shoulder_yaw = (int8_t)status.last_arm_status.shoulder_yaw_deg;
+    telem.arm_position.shoulder_pitch = (int8_t)status.last_arm_status.shoulder_pitch_deg;
+    telem.arm_position.elbow_pitch = (int8_t)status.last_arm_status.elbow_angle_deg;
+    telem.arm_position.wrist_pitch = (int8_t)status.last_arm_status.wrist_angle_deg;
+
+    if (status.last_power_sample.bus_voltage_v < -32768) {
+        telem.battery_mV = -32768;
+    } else if (status.last_power_sample.bus_voltage_v > 32767) {
+        telem.battery_mV = 32767;
+    } else {
+        telem.battery_mV = (uint16_t)(status.last_power_sample.bus_voltage_v * 1000);
+    }
+    telem.motor_temp = 20;
+    telem.radio_temp = 20;
+
 }
 void packet_for_actuators(const StatusAccumulator &status, Telemetry &telem) {}
 void packet_for_gnss(const StatusAccumulator &status, Telemetry &telem) {}

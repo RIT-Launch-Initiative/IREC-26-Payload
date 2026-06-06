@@ -6,16 +6,43 @@ import subprocess
 import sys
 
 
+
+def nextIdInDir(dir):
+    lastHighest = 0
+    sawAny = False
+    for path in os.listdir(path):
+        try:
+            id = int(path)
+            sawAny = True
+            if (id > lastHighest):
+                lastHighest = id
+        except:
+            continue
+    if sawAny:
+        lastHighest+=1
+    return lastHighest
+
+def dirWantsFresh(dir):
+    if os.exists(dir+'/new_dir_please.flag'):
+        return True
+    return False
+
 def main():
     parser = argparse.ArgumentParser(
         description="Create a flight directory and launch the flight stack."
     )
     parser.add_argument(
         "--base",
-        default="/data/flights",
-        help="Base directory under which the timestamped flight folder is created (default: /data/flights)",
+        default="~/flight_data",
+        help="Base directory under which the timestamped flight folder is created (default: ~/flight_data)",
     )
     args = parser.parse_args()
+    if len(os.listdir(args.base)) == 0:
+        dirId = 0
+    else:
+        nextDirId = nextIdInDir(args.base)
+        prevDirId = next 
+    print("Next Dir ID: ")
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     flight_dir = os.path.join(args.base, f"flight_{timestamp}")
@@ -37,6 +64,7 @@ def main():
         "cubesat_bringup",
         "flight.launch.py",
         f"flight_dir:={flight_dir}",
+        f"next_image_id:={next_image_id}"
     ]
 
     print(f"[start_flight] Executing: {' '.join(cmd)}")

@@ -15,7 +15,6 @@ def generate_launch_description():
     pi_io_cfg = os.path.join(pi_io_pkg, "config", "pi_io.yaml")
     stm_bridge_cfg = os.path.join(bringup_pkg, "config", "stm_bridge.yaml")
     radio_cfg = os.path.join(bringup_pkg, "config", "radio.yaml")
-    vision_cfg = os.path.join(bringup_pkg, "config", "watch.yaml")
 
     flight_dir_arg = DeclareLaunchArgument(
         "flight_dir",
@@ -69,10 +68,10 @@ def generate_launch_description():
         package="cubesat_radio",
         executable="radio_node",
         name="radio_node",
-        parameters=[radio_cfg, shared],
+parameters=[radio_cfg, shared],
         respawn=True,
         respawn_delay=2.0,
-        arguments=["--ros-args", "--log-level", "WARN"],
+        arguments=["--ros-args", "--log-level", "INFO"],
     )
 
     # 1280, 960 def works
@@ -82,7 +81,7 @@ def generate_launch_description():
             name="camera",
             output="screen",
             respawn=True,
-            respawn_delay=2.0,
+            respawn_delay=10.0,
             parameters=[{
                 "camera": "/base/soc/i2c0mux/i2c@1/imx219@10",
                 "width": 1280,

@@ -29,7 +29,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/SetServoPosition.srv"
   "srv/MoveServoRamp.srv"
   "srv/SendRadioPacket.srv"
-  "srv/GetImageBlock.srv"
+  "srv/TransmitImageBlocks.srv"
   "srv/HoldShut.srv"
   "srv/RequestStateChange.srv"
   "srv/TelemetryRequest.srv"

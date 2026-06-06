@@ -75,8 +75,8 @@ void ImageHandlerNode::handleImageRequest(const cubesat_msgs::msg::ImageRequest:
     meta.image_id = image_id;
     meta.request = *msg;
     meta.num_blocks = num_blocks;
-    imageMetadataPub->publish(meta);
     saveImageMetadata(meta, image_id);
+    imageMetadataPub->publish(meta);
 }
 
 std::optional<uint32_t> stringToImageId(const std::string &str) {

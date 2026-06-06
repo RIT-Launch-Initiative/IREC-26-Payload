@@ -1,0 +1,4 @@
+uint8 image_id
+uint16[] block_ids
+---
+bool success

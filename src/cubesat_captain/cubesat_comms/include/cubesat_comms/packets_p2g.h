@@ -132,6 +132,11 @@ struct ImageMetadata
 #define SIZEOF_PACKED_IMAGE_METADATA \
     (1 + 4 + 2 + SIZEOF_PACKED_ARM_TARGET + SIZEOF_PACKED_PHOTOTRANSFORM + 2 * 4)
 
+int pack_image_metadata(const struct ImageMetadata *target, uint8_t *buf);
+enum UnpackResult unpack_image_metadata(const uint8_t *buf,
+                                        uint32_t len,
+                                        struct ImageMetadata *target);
+
 struct ActuatorPositions
 {
     struct ArmTarget arms;
