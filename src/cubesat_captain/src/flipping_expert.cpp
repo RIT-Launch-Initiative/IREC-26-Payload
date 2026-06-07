@@ -1,4 +1,4 @@
-#include "cubesat_captain/flipping_state.hpp"
+#include "cubesat_captain/flipping_expert.hpp"
 #include "cubesat_captain/common.hpp"
 #include "cubesat_msgs/action/flip_servo_action.hpp"
 #include "cubesat_msgs/msg/accel_sample.hpp"
@@ -125,7 +125,7 @@ void FlippingExpert::flip_result_cb(const GoalHandleFlipServoAction::WrappedResu
     flip_finish();
     RCLCPP_INFO(logger, "Post Finish");
 }
-void FlippingExpert::flip_feedback_cb(GoalHandleFlipServoAction::SharedPtr,
-                                      const std::shared_ptr<const FlipServoAction::Feedback> feedback) {}
+void FlippingExpert::flip_feedback_cb([[maybe_unused]]GoalHandleFlipServoAction::SharedPtr,
+                                      [[maybe_unused]] const std::shared_ptr<const FlipServoAction::Feedback> feedback) {}
 
 } // namespace cubesat_captain

@@ -31,6 +31,22 @@ ImageHandlerNode::ImageHandlerNode() : Node("image_compressor") {
     flight_dir = declare_parameter<std::string>("flight_dir", "~/unconfigured_flight_dir");
     saveDirectory = flight_dir + "/images/";
     callsign = this->declare_parameter<std::string>("callsign", "KD2YIE");
+
+
+    auto maybe_next_image = nextImageIdForDir(flight_dir);
+    if (maybe_next_image){
+        uint32_t next_image = *maybe_next_image;
+        if (next_image>0){
+            next_image--;
+        }
+        auto path = pathForMetadata(next_image);
+        cubesat_msgs::msg::ImageMetadata meta;
+        if (loadImageMetadata(path, meta)){
+            imageMetadataPub->publish(meta);
+        }
+    }
+
+
 }
 
 ImageHandlerNode::~ImageHandlerNode() = default;
@@ -357,3 +373,35 @@ void ImageHandlerNode::saveImageMetadata(const cubesat_msgs::msg::ImageMetadata 
                serialized_msg.get_rcl_serialized_message().buffer_length);
     file.close();
 }
+
+
+bool ImageHandlerNode::loadImageMetadata(std::string path, cubesat_msgs::msg::ImageMetadata &metadata) {
+    try {
+        // read file
+        std::ifstream file(path, std::ios::in | std::ios::binary | std::ios::ate);
+        file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+
+        std::streamsize size = file.tellg();
+        file.seekg(0, std::ios::beg);
+
+        std::vector<uint8_t> buffer(size);
+        file.read(reinterpret_cast<char *>(buffer.data()), size);
+        file.close();
+
+        rclcpp::SerializedMessage serialized_msg;
+        auto &rcl_msg = serialized_msg.get_rcl_serialized_message();
+
+        // deserialize
+        rmw_serialized_message_resize(&rcl_msg, size);
+        std::memcpy(rcl_msg.buffer, buffer.data(), size);
+        rcl_msg.buffer_length = size; // Explicitly set length to avoid invalid state errors
+
+        rclcpp::Serialization<cubesat_msgs::msg::ImageMetadata> serializer;
+        serializer.deserialize_message(&serialized_msg, &metadata);
+        return true;
+    } catch (std::exception &e) {
+        RCLCPP_WARN(get_logger(), "Failed to load image metadata profile from file %s: %s", path.c_str(), e.what());
+        return false;
+    }
+}
+

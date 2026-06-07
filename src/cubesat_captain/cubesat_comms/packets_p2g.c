@@ -174,8 +174,7 @@ enum UnpackResult unpack_command_response(const uint8_t *buf, uint32_t len, stru
     case Command_ExpectFlight:
     case Command_BackToPad:
     case Command_ForceManual:
-    case Command_ZeroShoulder_AssumeOpen:
-    case Command_RunOpenSequence:
+    case Command_SetShoulder:
     case Command_TakePicture:
         return UnpackResult_AllGood;
     case Command_ImageMetadata:
@@ -244,6 +243,8 @@ enum UnpackResult unpack_telemetry(const uint8_t *buf, uint32_t len, struct Tele
     case TelemetryType_Power:
         return UnpackResult_UnknownCommand;
     }
+
+    return UnpackResult_UnknownCommand;
 }
 
 int pack_image_metadata(const struct ImageMetadata *target, uint8_t *buf) {

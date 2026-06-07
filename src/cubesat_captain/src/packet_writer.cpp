@@ -44,7 +44,17 @@ void packet_for_flight_heartbeat(const StatusAccumulator &status, FlightHeartbea
     }
     telem.altitude = (uint16_t)altitude_m;
 
-    telem.s_since_boost = 0;
+    if (status.takeoff_time == 0){
+        telem.s_since_boost = 0;
+    } else {
+        rclcpp::Clock system_clock(RCL_SYSTEM_TIME);
+        rclcpp::Time now = system_clock.now();
+        uint32_t elapsed = (uint32_t)now.seconds() - status.takeoff_time;
+        if (elapsed > 65535){
+            elapsed = 65535;
+        }
+        telem.s_since_boost = (uint16_t)elapsed;
+    }
 
     if (status.last_power_sample.bus_voltage_v < -32768) {
         telem.battery_mV = -32768;

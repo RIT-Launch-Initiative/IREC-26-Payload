@@ -34,66 +34,12 @@ struct RecropData {
 };
 #define SIZEOF_PACKED_RECROP_DATA (1 + SIZEOF_PACKED_PHOTOTRANSFORM)
 
-#define MAX_DELAY_IN_SEQUENCE 127
-struct WriteArmSequenceData {
-    uint8_t path_id;
-    uint8_t index;
-    bool take_picture;
-    uint8_t delay_before_next; // [0,127] seconds
-    struct ArmTarget target;
-};
-
-struct ReadArmSequenceData {
-    uint8_t path_id;
-    uint8_t index;
-};
-struct ExecuteArmSequenceData {
-    uint8_t path_id;
-};
-
-// Maybe
-enum ServoOrder {
-    ServoOrder_123 = 0,
-    ServoOrder_132 = 1,
-    ServoOrder_213 = 2,
-    ServoOrder_231 = 3,
-    ServoOrder_312 = 4,
-    ServoOrder_321 = 5,
-};
-
-// Maybe
-struct ManualServoPositionsData {
-    uint8_t servo1;
-    uint8_t servo2;
-    uint8_t servo3;
-    bool return_to_home_after;           // 1 bit
-    bool hold_position_across_movements; // 1 bit
-    enum ServoOrder order;               // 3 bit
-};
-
-#define MAX_SHELL_EXEC_LEN 128
-struct ShellExecData {
-    // exec-id determined by next available slot on payload
-    uint8_t length;
-    uint8_t buf[MAX_SHELL_EXEC_LEN]; // command to run
-};
-
-struct ShellReadOutputRequest {
-    uint8_t exec_id; // id of execution to read data from
-    uint16_t index;  // index of SHELL_OUTPUT_CHUNK_SIZE byte sized chunk to send.
-    uint8_t length;  // length in # of chunks to get at once (MSBit used to say compressed or uncompressed. Maximum of
-                     // MAX_PACKETS_BEFORE_RESPONSE
-    bool get_compressed; // if set, read from compressed version (packed into length field)
-};
-#define SIZEOF_PACKED_SHELL_READ_OUTPUT_REQ 4
+struct ServoMotion {};
 
 struct TelemetryRequestData {
     enum TelemetryType telem_type;
 };
 
-struct ShellExecReturnDataRequest {
-    uint8_t exec_id;
-};
 
 struct Callsign {
     uint8_t buf[6];
@@ -105,7 +51,7 @@ void pack_callsign(const struct Callsign *callsign, uint8_t *buf);
 struct ImageBlockRequest
 {
     uint8_t image_id;
-    uint8_t num; // max 60
+    uint8_t num; // max MAX_BLOCKS_PER_REQUEST
     uint16_t block_ids[MAX_BLOCKS_PER_REQUEST];
 };
 int pack_image_block_request(const struct ImageBlockRequest *req, uint8_t *buf);
@@ -130,17 +76,8 @@ struct CommandAndData {
         struct ArmTarget send_arm_to_target_and_come_back;
         struct ArmTarget send_arm_to_target_for_photo_and_come_back;
         struct ArmTarget send_idle_position;
-        struct WriteArmSequenceData write_arm_sequence;
-        struct ReadArmSequenceData read_arm_sequence;
-        struct ExecuteArmSequenceData execute_arm_sequence;
-        // CancelExecutingArmSequence
-        // ZeroShoulder Assume Open
-        // RunOpenSequence
+        // SetShoulderPosition
 
-        struct ShellExecData shell_exec;
-        struct ShellExecReturnDataRequest shell_exec_return_info_request;
-        struct ShellReadOutputRequest shell_read_stdout;
-        struct ShellReadOutputRequest shell_read_stderr;
         // ClearFlight
         struct TelemetryRequestData telem_request;
 

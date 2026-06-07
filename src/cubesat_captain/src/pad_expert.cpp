@@ -1,9 +1,13 @@
-#include "cubesat_captain/pad_state.hpp"
+#include "cubesat_captain/pad_expert.hpp"
 #include "cubesat_captain/common.hpp"
 
 namespace cubesat_captain {
 
-void PadExpert::enter_state() { levers.set_primary_heartbeat(cubesat_msgs::msg::TelemetryType::FLIGHT_HEARTBEAT); }
+void PadExpert::enter_state() {
+    levers.set_primary_heartbeat(cubesat_msgs::msg::TelemetryType::FLIGHT_HEARTBEAT);
+    levers.set_runcam_power(false);
+    levers.status.clear_takeoff_time();
+}
 
 void PadExpert::handle_base_accel(const cubesat_msgs::msg::AccelSample &sample) {
 
@@ -16,6 +20,8 @@ void PadExpert::handle_base_accel(const cubesat_msgs::msg::AccelSample &sample) 
 void PreboostExpert::handle_base_accel(const cubesat_msgs::msg::AccelSample &sample) {
     pad_expert->handle_base_accel(sample);
 }
+
+void PreboostExpert::enter_state() { levers.set_runcam_power(true); }
 
 } // namespace cubesat_captain
 

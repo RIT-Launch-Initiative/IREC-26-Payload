@@ -14,14 +14,14 @@ enum UnpackResult unpack_g2p_link_header(const uint8_t *buf, uint32_t len, struc
     return UnpackResult_AllGood;
 }
 int pack_g2p_link_header(const struct G2PLinkHeader *header, uint8_t *buf) {
-    buf[0] = ((header->packet_type & 0b11) << 6) | header->expected_packets_before_response & 0b111111;
+    buf[0] = ((header->packet_type & 0b11) << 6) | (header->expected_packets_before_response & 0b111111);
     return 1;
 }
 int pack_arm_target(const struct ArmTarget *target, uint8_t *buf) {
-    buf[0] = target->shoulder_yaw;
-    buf[1] = target->shoulder_pitch;
-    buf[2] = target->elbow_pitch;
-    buf[3] = target->wrist_pitch;
+    buf[0] = *(uint8_t*)&target->shoulder_yaw;
+    buf[1] = *(uint8_t*)&target->shoulder_pitch;
+    buf[2] = *(uint8_t*)&target->elbow_pitch;
+    buf[3] = *(uint8_t*)&target->wrist_pitch;
     return 4;
 }
 enum UnpackResult unpack_arm_target(const uint8_t *buf, uint32_t len, struct ArmTarget *target) {
@@ -29,94 +29,17 @@ enum UnpackResult unpack_arm_target(const uint8_t *buf, uint32_t len, struct Arm
         return UnpackResult_TooShort;
     }
 
-    target->shoulder_yaw = buf[0];
-    target->shoulder_pitch = buf[1];
-    target->elbow_pitch = buf[2];
-    target->wrist_pitch = buf[3];
+    target->shoulder_yaw =  *(int8_t*)&buf[0];
+    target->shoulder_pitch =*(int8_t*)&buf[1];
+    target->elbow_pitch =   *(int8_t*)&buf[2];
+    target->wrist_pitch =   *(int8_t*)&buf[3];
 
     return UnpackResult_AllGood;
 }
 
 static const uint32_t take_picture_location = 7;
 static const uint8_t take_picture_mask = 1 << take_picture_location;
-static const uint8_t delay_mask = (uint8_t)~take_picture_mask;
 
-int pack_write_arm_sequence_data(const struct WriteArmSequenceData *data, uint8_t *buf) {
-    buf[0] = data->path_id;
-    buf[1] = data->index;
-
-    buf[2] = data->delay_before_next;
-    if (buf[2] > MAX_DELAY_IN_SEQUENCE) {
-        buf[2] = MAX_DELAY_IN_SEQUENCE;
-    }
-    if (data->take_picture) {
-        buf[2] |= take_picture_mask;
-    }
-    return 3 + pack_arm_target(&data->target, &buf[3]);
-}
-
-enum UnpackResult unpack_write_arm_sequence_data(const uint8_t *buf, int len, struct WriteArmSequenceData *data) {
-    if (len < 3) {
-        return UnpackResult_TooShort;
-    }
-
-    data->path_id = buf[0];
-    data->index = buf[1];
-
-    data->take_picture = (buf[2] & take_picture_mask) != 0;
-    data->delay_before_next = buf[2] & 0b1111111;
-
-    return unpack_arm_target(&buf[3], len - 3, &data->target);
-}
-
-int pack_shell_exec(const struct ShellExecData *exec, uint8_t *buf) {
-    buf[0] = exec->length;
-    if (buf[0] > MAX_SHELL_EXEC_LEN) {
-        buf[0] = MAX_SHELL_EXEC_LEN;
-    }
-    memcpy(&buf[1], exec->buf, buf[0]);
-    return 1 + buf[0];
-}
-
-enum UnpackResult unpack_shell_exec(const uint8_t *buf, int len, struct ShellExecData *exec) {
-    if (len < 1) {
-        return UnpackResult_TooShort;
-    }
-    uint8_t buf_len = buf[0];
-    if (len - 1 < buf_len) {
-        return UnpackResult_TooShort;
-    }
-    if (buf_len > MAX_SHELL_EXEC_LEN) {
-        return UnpackResult_TooLong;
-    }
-    memcpy(exec->buf, &buf[1], buf_len);
-    return UnpackResult_AllGood;
-}
-
-int pack_shell_read_output_request(const struct ShellReadOutputRequest *request, uint8_t *buf) {
-    static const uint16_t want_compressed_mask = 1 << 15;
-    static const uint16_t index_mask = (uint16_t)~want_compressed_mask;
-
-    uint16_t packet = (request->get_compressed ? want_compressed_mask : 0) | (request->index & index_mask);
-    buf[0] = (packet >> 8) & 0xff;
-    buf[1] = (packet) & 0xff;
-    return 2;
-}
-
-enum UnpackResult unpack_shell_read_output_request(const uint8_t *buf, int len,
-                                                   struct ShellReadOutputRequest *request) {
-    static const uint16_t want_compressed_mask = 1 << 15;
-    static const uint16_t index_mask = (uint16_t)~want_compressed_mask;
-    if (len < 2) {
-        return UnpackResult_TooShort;
-    }
-
-    uint16_t packet = (buf[0] << 8) | buf[1];
-    request->get_compressed = (packet & want_compressed_mask) >> 15;
-    request->index = packet & index_mask;
-
-    return UnpackResult_AllGood;
-}
 
 int pack_command_and_data(const struct CommandAndData *cmd_and_data, uint8_t *buf) {
     buf[0] = (uint8_t)cmd_and_data->command;
@@ -126,8 +49,7 @@ int pack_command_and_data(const struct CommandAndData *cmd_and_data, uint8_t *bu
     case Command_ExpectFlight:
     case Command_BackToPad:
     case Command_NewFlightDanger:
-    case Command_ZeroShoulder_AssumeOpen:
-    case Command_RunOpenSequence:
+    case Command_SetShoulder:
     case Command_StopVideo:
         return 1;
     case Command_Callsign:
@@ -147,21 +69,14 @@ int pack_command_and_data(const struct CommandAndData *cmd_and_data, uint8_t *bu
         pack_phototransform(&cmd_and_data->recrop.transform, buf + 1);
         return 1 + SIZEOF_PACKED_RECROP_DATA;
 
+    case Command_SendArmTarget:
+        return 1 + pack_arm_target(&cmd_and_data->send_arm_to_target, &buf[1]);
     case Command_SendArmTargetAndComeBack:
         return 1 + pack_arm_target(&cmd_and_data->send_arm_to_target_and_come_back, &buf[1]);
     case Command_SendArmTargetForPhotoAndComeBack:
         return 1 + pack_arm_target(&cmd_and_data->send_arm_to_target_for_photo_and_come_back, &buf[1]);
     case Command_SendIdlePosition:
         return 1 + pack_arm_target(&cmd_and_data->send_idle_position, &buf[1]);
-    case Command_ShellExec:
-        return 1 + pack_shell_exec(&cmd_and_data->shell_exec, buf);
-    case Command_ShellExecInfo:
-        buf[1] = cmd_and_data->shell_exec_return_info_request.exec_id;
-        return 2;
-    case Command_ShellReadStdout:
-        return 1 + pack_shell_read_output_request(&cmd_and_data->shell_read_stdout, &buf[1]);
-    case Command_ShellReadStderr:
-        return 1 + pack_shell_read_output_request(&cmd_and_data->shell_read_stderr, &buf[1]);
     case Command_TelemetryRequest:
         buf[1] = cmd_and_data->telem_request.telem_type;
         return 2;
@@ -188,8 +103,6 @@ enum UnpackResult unpack_command_and_data(const uint8_t *buf, int len, struct Co
     case Command_ExpectFlight:
     case Command_BackToPad:
     case Command_NewFlightDanger:
-    case Command_ZeroShoulder_AssumeOpen:
-    case Command_RunOpenSequence:
     case Command_StopVideo:
         return UnpackResult_AllGood; // no data with these messages
     case Command_StartVideo:
@@ -208,27 +121,17 @@ enum UnpackResult unpack_command_and_data(const uint8_t *buf, int len, struct Co
       } else {
         return UnpackResult_TooShort;
       }
+    case Command_ReCrop:
+        return UnpackResult_Unimplemented;
 
-
-    case Command_SendArmTargetAndComeBack:
+    case Command_SendArmTarget:
         return unpack_arm_target(data_buf, data_len, &cmd_and_data->send_arm_to_target_and_come_back);
+    case Command_SendArmTargetAndComeBack:
+        return unpack_arm_target(data_buf, data_len, &cmd_and_data->send_arm_to_target);
     case Command_SendArmTargetForPhotoAndComeBack:
         return unpack_arm_target(data_buf, data_len, &cmd_and_data->send_arm_to_target_for_photo_and_come_back);
     case Command_SendIdlePosition:
         return unpack_arm_target(data_buf, data_len, &cmd_and_data->send_idle_position);
-    case Command_ShellExec:
-        return unpack_shell_exec(data_buf, data_len, &cmd_and_data->shell_exec);
-    case Command_ShellExecInfo:
-        if (data_len < 1) {
-            return UnpackResult_TooShort;
-        } else {
-            cmd_and_data->shell_exec_return_info_request.exec_id = buf[1];
-            return UnpackResult_AllGood;
-        }
-    case Command_ShellReadStdout:
-        return unpack_shell_read_output_request(data_buf, data_len, &cmd_and_data->shell_read_stdout);
-    case Command_ShellReadStderr:
-        return unpack_shell_read_output_request(data_buf, data_len, &cmd_and_data->shell_read_stderr);
     case Command_TelemetryRequest:
         if (data_len > 0) {
             cmd_and_data->telem_request.telem_type = data_buf[0];
@@ -375,7 +278,7 @@ enum UnpackResult unpack_image_block_request(uint8_t *buf, uint32_t len, struct 
   }
   req->image_id = buf[0];
   req->num = buf[1];
-  if (len < req->num * 2 + 2){
+  if (len < (uint32_t)(req->num * 2 + 2)){
     return UnpackResult_TooShort;
   }
   if (req->num > MAX_BLOCKS_PER_REQUEST){

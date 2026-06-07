@@ -1,8 +1,9 @@
 import os
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, ExecuteProcess
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+
 from ament_index_python.packages import get_package_share_directory
 
 '''
@@ -111,16 +112,13 @@ parameters=[radio_cfg, shared],
 
         )
     
-
-    # vision = Node(
-    #     package="cubesat_vision",
-    #     executable="vision_node",
-    #     name="vision_node",
-    #     parameters=[vision_cfg, shared],
-    #     respawn=True,
-    #     respawn_delay=2.0,
-    #     arguments=["--ros-args", "--log-level", "WARN"],
-    # )
+    bag = ExecuteProcess(
+            cmd=['ros2', 'bag', 'record', '-s', 'mcap', '--compression-mode file', '--compression-format', 'zstd',  '-a', '-x', "'/camera/image_raw|/camera/image_raw/compressed'"],
+            shell=True,
+            output='screen',
+            log_cmd=True,
+            cwd = flight_dir,
+        )
 
     return LaunchDescription(
         [
@@ -131,6 +129,7 @@ parameters=[radio_cfg, shared],
             # control,
             radio,
             camera,
-            watch
+            watch,
+            bag
         ]
     )

@@ -1,8 +1,11 @@
 #include "cubesat_captain/captain_node.hpp"
-#include "cubesat_captain/flipping_state.hpp"
+#include "cubesat_captain/flipping_expert.hpp"
 #include "cubesat_captain/manual_expert.hpp"
+#include "cubesat_captain/flight_expert.hpp"
+#include "cubesat_captain/autonomous_experts.hpp"
+
 #include "cubesat_captain/packet_writer.hpp"
-#include "cubesat_captain/pad_state.hpp"
+#include "cubesat_captain/pad_expert.hpp"
 
 #include <chrono>
 #include <filesystem>
@@ -19,11 +22,17 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
              create_client<cubesat_msgs::srv::ZeroArm>("/stm/zero_arm"),
              rclcpp_action::create_client<cubesat_msgs::action::ExtendArm>(this, "/stm/move_arm"),
              rclcpp_action::create_client<cubesat_msgs::action::FlipServoAction>(this, "/stm/flip_servo"),
+             [this]() { this->flight_timer->reset(); },
+             [this]() { this->flight_timer->cancel(); },
+             [this](bool enabled) { this->setCamera(enabled); },
              [this](State state) { this->change_internal_state(state); },
              [this](cubesat_msgs::msg::TelemetryType::_telem_id_type typ) {
                  this->primary_heartbeat_type.telem_id = typ;
              }} {
     flight_dir = declare_parameter<std::string>("flight_dir", "~/unconfigured_flight_dir");
+    gpio_chip_name = declare_parameter<std::string>("gpio_chip", "gpiochip0");
+    runcam_pin = declare_parameter<int64_t>("runcam_pin", 1);
+
     load_startup_parameters();
     primary_heartbeat_type.telem_id = cubesat_msgs::msg::TelemetryType::FLIGHT_HEARTBEAT;
 
@@ -65,11 +74,9 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     image_metadata_sub = create_subscription<cubesat_msgs::msg::ImageMetadata>(
         "watcher/image_metadata", 10, std::bind(&CaptainNode::handle_image_metadata, this, std::placeholders::_1));
 
-
     arm_status_sub = create_subscription<cubesat_msgs::msg::ArmStatus>(
-        "stm/arm_status", 10, [this](const cubesat_msgs::msg::ArmStatus::SharedPtr status){
-            this->status.update_arm_status(*status);
-        });
+        "stm/arm_status", 10,
+        [this](const cubesat_msgs::msg::ArmStatus::SharedPtr status) { this->status.update_arm_status(*status); });
 
     this->request_state_change_service = create_service<cubesat_msgs::srv::RequestStateChange>(
         "/pi/change_state",
@@ -89,11 +96,25 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
         create_wall_timer(std::chrono::milliseconds((int)(1000 * status.current_parameters.secondary_heartbeat_s)),
                           [this] { onSecondaryHeartbeatTimer(); });
 
+    flight_timer = create_wall_timer(
+        std::chrono::milliseconds((int)(1000 * status.current_parameters.flight_time_s)), [this] {
+            Expert *expert = expert_for_state(this->status.active_state());
+            if (expert != nullptr) {
+                expert->handle_flight_timer_expired();
+            }
+        });
+    flight_timer->cancel();
+
     PadExpert *pad_expert = new PadExpert(get_logger(), levers);
     experts[(int)State::Pad] = pad_expert;
     experts[(int)State::Preboost] = new PreboostExpert(get_logger(), levers, pad_expert); // bad and terrible ngl
+    experts[(int)State::Preboost] = new FlightExpert(get_logger(), levers);   // bad and terrible ngl
     experts[(int)State::Flipping] = new FlippingExpert(get_logger(), levers);
     experts[(int)State::ManualControl] = new ManualExpert(get_logger(), levers);
+
+    if (!openCameraLine()) {
+        RCLCPP_WARN(get_logger(), "Failed to open runcam gpio");
+    }
 
     // enter initial state
     State initial_state = State::Pad;
@@ -233,7 +254,7 @@ void CaptainNode::onPrimaryHeartbeatTimer() {
 
 void CaptainNode::onSecondaryHeartbeatTimer() {
     cubesat_msgs::msg::TelemetryType typ;
-    typ.telem_id =  primary_heartbeat_type.telem_id == cubesat_msgs::msg::TelemetryType::FLIGHT_HEARTBEAT
+    typ.telem_id = primary_heartbeat_type.telem_id == cubesat_msgs::msg::TelemetryType::FLIGHT_HEARTBEAT
                        ? cubesat_msgs::msg::TelemetryType::LANDED_HEARTBEAT
                        : cubesat_msgs::msg::TelemetryType::FLIGHT_HEARTBEAT;
     emit_telemetry(typ);
@@ -254,6 +275,41 @@ void CaptainNode::handle_image_metadata(const cubesat_msgs::msg::ImageMetadata::
     RCLCPP_INFO(get_logger(), "Image Metadata delivered for image %d", (int)meta->image_id);
     status.update_last_image(meta->image_id);
     emit_image_metadata(*meta);
+}
+
+bool request_output(gpiod_chip *chip, int line_number, const char *consumer, int initial_value, gpiod_line *&out_line) {
+    if (line_number < 0) {
+        out_line = nullptr;
+        return true;
+    }
+
+    out_line = gpiod_chip_get_line(chip, line_number);
+    if (out_line == nullptr) {
+        return false;
+    }
+    if (gpiod_line_request_output(out_line, consumer, initial_value) != 0) {
+        gpiod_line_release(out_line);
+        out_line = nullptr;
+        return false;
+    }
+    return true;
+}
+
+bool CaptainNode::openCameraLine() {
+    gpio_chip = gpiod_chip_open_by_name(gpio_chip_name.c_str());
+    if (gpio_chip == nullptr) {
+        return false;
+    }
+
+    if (!request_output(gpio_chip, runcam_pin, "runcam", 0, camera_gpio)) {
+        return false;
+    }
+    return true;
+}
+
+bool CaptainNode::setCamera(bool on) {
+    gpiod_line_set_value(camera_gpio, on);
+    return true;
 }
 
 } // namespace cubesat_captain

@@ -35,6 +35,8 @@ class ImageHandlerNode final : public rclcpp::Node {
     bool createFolderForImage(uint32_t image_id);
     void savePacket(uint8_t *data, uint32_t length, uint32_t image_id, uint16_t block_index);
     void saveImageMetadata(const cubesat_msgs::msg::ImageMetadata &pkt, uint32_t image_id);
+    bool loadImageMetadata(std::string path, cubesat_msgs::msg::ImageMetadata &metadata);
+
     uint16_t encodeSSDV(std::vector<uint8_t> &data, bool fec, uint8_t quality, int maxPacketSize, uint32_t imageId);
 
 

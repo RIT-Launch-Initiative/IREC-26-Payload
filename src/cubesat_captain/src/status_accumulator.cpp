@@ -1,4 +1,5 @@
 #include "cubesat_captain/status_accumulator.hpp"
+#include <rclcpp/rclcpp.hpp>
 
 namespace cubesat_captain {
 
@@ -35,5 +36,13 @@ void StatusAccumulator::last_good_gps_position(float *lat, float *lon, float *al
         *alt = last_good_gps_sample.altitude_m;
     }
 }
+
+void StatusAccumulator::set_takeoff_time() {
+    rclcpp::Clock system_clock(RCL_SYSTEM_TIME);
+    rclcpp::Time now = system_clock.now();
+
+    takeoff_time = (uint32_t)now.seconds();
+}
+void StatusAccumulator::clear_takeoff_time() { takeoff_time = 0; }
 
 } // namespace cubesat_captain

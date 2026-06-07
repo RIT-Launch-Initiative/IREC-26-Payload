@@ -40,9 +40,13 @@ class StatusAccumulator {
     void update_last_image(uint8_t just_taken_image);
 
     void update_flight_state(const cubesat_msgs::msg::FlightState &);
+
+    void set_takeoff_time();
+    void clear_takeoff_time();
+
     State active_state() const;
 
-  // if the most recent gps packet had fix
+    // if the most recent gps packet had fix
     bool has_gps() const;
     // last known gps coordinates if we ever got a fix
     void last_good_gps_position(float *lat, float *lon, float *alt) const;
@@ -57,6 +61,7 @@ class StatusAccumulator {
 
     cubesat_msgs::msg::AccelSample last_base_accel{};
     uint8_t last_image_id;
+    uint32_t takeoff_time = 0;
 
   private:
 };

@@ -119,8 +119,8 @@ enum Command {
                           // off. maybe also turn on cameras
 
     Command_BackToPad,  // go back to normal waitin on the pad mode
-    Command_StartVideo, // Start Pi cam video
-    Command_StopVideo,  // Stop Pi cam video
+    Command_StartVideo, // Start Runcam  video TODO
+    Command_StopVideo,  // Stop Runcam video TODO
     Command_TakePicture,
     Command_ImageMetadata,
     Command_ReCrop, // refer to original image for an image id, recrop it, save that as the next image_id (rather than
@@ -134,13 +134,7 @@ enum Command {
     Command_SendIdlePosition, // treat the sent position as the 'home'
     // position for sending UNLESS you don't
     // hear back
-    Command_ZeroShoulder_AssumeOpen, // points joints straight up and spins the
-    // shoulder joint to try to hit the hal
-    // effect sensor
-    Command_RunOpenSequence, // if servos: Run them to flip us upright
-    // if arm: return to 'stowed' position if not close
-    // then do the sequence to flip us out and up
-    // Command_ManualServoPositions,
+    Command_SetShoulder, // tell the stm the position of all the joints
 
     Command_ShellExec, // execute a shell command - does not necessarily wait for
     // it to finish (tho like don't run an infinitely running

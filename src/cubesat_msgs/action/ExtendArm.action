@@ -2,6 +2,7 @@ int8 shoulder_yaw
 int8 shoulder_pitch
 int8 elbow_pitch
 int8 wrist_pitch
+bool ignore_stall
 ---
 bool success
 bool overcurrent

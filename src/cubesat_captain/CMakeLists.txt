@@ -15,26 +15,32 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(cubesat_msgs REQUIRED)
+pkg_check_modules(GPIOD REQUIRED libgpiod)
+
 
 add_executable(captain_node
   src/main.cpp
   src/captain_node.cpp
   src/captain_comms.cpp
-  src/pad_state.cpp
-  src/flipping_state.cpp
+  src/pad_expert.cpp
+  src/flight_expert.cpp
+  src/flipping_expert.cpp
+  src/autonomous_experts.cpp
   src/manual_expert.cpp
   src/status_accumulator.cpp
   src/packet_writer.cpp
 )
 
 add_subdirectory(cubesat_comms)
-target_link_libraries(captain_node cubesat_comms)
+target_link_libraries(captain_node cubesat_comms  ${GPIOD_LIBRARIES})
 
 
 
 target_include_directories(captain_node PRIVATE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/cubesat_comms/include>)
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/cubesat_comms/include>
+  ${GPIOD_INCLUDE_DIRS})
+
 
 ament_target_dependencies(captain_node rclcpp rclcpp_action cubesat_msgs)
 

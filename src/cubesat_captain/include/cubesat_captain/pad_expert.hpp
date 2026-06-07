@@ -115,6 +115,8 @@ class PreboostExpert : public Expert {
     ~PreboostExpert() {}
     void handle_base_accel(const cubesat_msgs::msg::AccelSample &sample) override;
 
+    void enter_state() override;
+
   private:
     PadExpert *pad_expert;
 };

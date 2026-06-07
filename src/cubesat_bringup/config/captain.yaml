@@ -11,3 +11,6 @@
 
     warn_battery_threshold_v: 10.75
     danger_battery_threshold_v: 10.5
+
+    gpio_chip: "gpiochip0"
+    runcam_pin: 1

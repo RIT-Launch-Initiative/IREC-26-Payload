@@ -20,16 +20,15 @@ void ManualExpert::send_arm_to_target(const cubesat_msgs::action::ExtendArm::Goa
     levers.extend_arm_client->async_send_goal(goal, send_goal_options);
 }
 
-void ManualExpert::enter_state(){
-    levers.set_primary_heartbeat(cubesat_msgs::msg::TelemetryType::LANDED_HEARTBEAT);
-}
-
+void ManualExpert::enter_state() { levers.set_primary_heartbeat(cubesat_msgs::msg::TelemetryType::LANDED_HEARTBEAT); }
 
 void ManualExpert::send_arm_to_target_and_come_back(const cubesat_msgs::action::ExtendArm::Goal &goal) {
-    RCLCPP_INFO(logger, "Received request to send arm to target and come back");
+    RCLCPP_INFO(logger, "Received request to send arm to target and come back: %d, %d, %d, %d", goal.shoulder_yaw,
+                goal.shoulder_pitch, goal.elbow_pitch, goal.wrist_pitch);
 }
 void ManualExpert::send_arm_to_target_and_come_back_with_photo(const cubesat_msgs::action::ExtendArm::Goal &goal) {
-    RCLCPP_INFO(logger, "Received request to send arm to target and come back with image");
+    RCLCPP_INFO(logger, "Received request to send arm to target and come back with image: %d, %d, %d, %d",
+                goal.shoulder_yaw, goal.shoulder_pitch, goal.elbow_pitch, goal.wrist_pitch);
 }
 
 void ManualExpert::arm_response_cb(GoalHandleExtendArm::SharedPtr) { RCLCPP_INFO(logger, "Arm Response CB"); }

@@ -32,6 +32,11 @@ struct Levers {
     rclcpp_action::Client<cubesat_msgs::action::ExtendArm>::SharedPtr extend_arm_client;              // stm/move_arm
     rclcpp_action::Client<cubesat_msgs::action::FlipServoAction>::SharedPtr flip_servo_action_client; // /stm/flip_servo
     // things an expert can do
+
+    std::function<void()> start_flight_timer;
+    std::function<void()> stop_flight_timer;
+    
+    std::function<void(bool enabled)> set_runcam_power;
     std::function<void(State state)> goto_state;
     std::function<void(cubesat_msgs::msg::TelemetryType::_telem_id_type type)> set_primary_heartbeat;
 };
@@ -41,6 +46,10 @@ class Expert {
     Expert(rclcpp::Logger logger, Levers &levers) : logger(logger), levers(levers) {}
     virtual void enter_state() {}
     virtual void exit_state() {}
+
+    virtual void handle_flight_timer_expired() {
+        RCLCPP_WARN(logger, "Flight Timer expired passed to expert with no handler");
+    }
 
     virtual void handle_base_accel([[maybe_unused]] const cubesat_msgs::msg::AccelSample &sample) {}
     virtual void handle_arm_status([[maybe_unused]] const cubesat_msgs::msg::ArmStatus &status) {}
