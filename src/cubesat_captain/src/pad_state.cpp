@@ -3,6 +3,8 @@
 
 namespace cubesat_captain {
 
+void PadExpert::enter_state() { levers.set_primary_heartbeat(cubesat_msgs::msg::TelemetryType::FLIGHT_HEARTBEAT); }
+
 void PadExpert::handle_base_accel(const cubesat_msgs::msg::AccelSample &sample) {
 
     double mag = accel_magnitude(sample);
@@ -14,7 +16,6 @@ void PadExpert::handle_base_accel(const cubesat_msgs::msg::AccelSample &sample) 
 void PreboostExpert::handle_base_accel(const cubesat_msgs::msg::AccelSample &sample) {
     pad_expert->handle_base_accel(sample);
 }
-
 
 } // namespace cubesat_captain
 

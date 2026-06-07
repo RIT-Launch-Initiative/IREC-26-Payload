@@ -40,6 +40,8 @@ class RadioNode : public rclcpp::Node {
     void radioLoop();
     void interruptLoop();
 
+    // void onEnforcedRxTimer();
+
     // ros handlers
     void handleTxPacket(const cubesat_msgs::msg::RadioPacket::SharedPtr msg);
     void handleSendRadioPacket(const std::shared_ptr<cubesat_msgs::srv::SendRadioPacket::Request> &request,
@@ -58,6 +60,7 @@ class RadioNode : public rclcpp::Node {
     std::unique_ptr<Sx1262Radio> radio;
 
     struct RadioStateMachine {
+        // RadioStateMachine(RadioNode &node);
         // STATE
         enum NormalState {
             Idle,
@@ -91,6 +94,7 @@ class RadioNode : public rclcpp::Node {
         static constexpr uint32_t LINK_TEST_CHANCE_EXPIRED_BIT = 32;
 
         // Communication state
+        // RadioNode &parent;
 
         std::atomic<uint32_t> radio_flag_signal{0}; // cfg change, new packet, interrupt, stopping
         std::atomic<bool> interrupt_thread_running{true};
@@ -109,8 +113,11 @@ class RadioNode : public rclcpp::Node {
         uint8_t linkTestNumLeft = 0;
         RadioProfile profileUnderTest;
     };
+    // friend RadioStateMachine;
+
     using RSM = RadioStateMachine;
     // ONLY TOUCHED BY RADIO THREAD
-    RadioStateMachine rsm;
+    RadioStateMachine rsm;//{*this};
+    // rclcpp::TimerBase::SharedPtr enforced_rx_timer;
 };
 } // namespace cubesat_radio

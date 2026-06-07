@@ -51,6 +51,8 @@ RadioNode::RadioNode(const rclcpp::NodeOptions &options) : rclcpp::Node("radio_n
                 profile.tx_power_dbm, hardware.spi_device.c_str(), hardware.reset_gpio, hardware.busy_gpio,
                 hardware.dio1_gpio);
 
+    // enforced_rx_timer = create_wall_timer(std::chrono::milliseconds(1000), [this] { onEnforcedRxTimer(); });
+
     rsm.radio_flag_signal.store(0);
     rxThread = std::thread(&RadioNode::radioLoop, this);
 
@@ -73,6 +75,12 @@ RadioNode::~RadioNode() {
         rxThread.join();
     }
 }
+
+// void RadioNode::onEnforcedRxTimer() {
+//     enforced_rx_timer->cancel();
+//     rsm.rxChanceExpired();
+//     RCLCPP_INFO(get_logger(), "enforced rx time is up");
+// }
 
 RadioProfile RadioNode::loadParameterProfile() {
     RadioProfile profile;
@@ -120,6 +128,14 @@ void RadioNode::RadioStateMachine::signalStopping() {
     interrupt_thread_running.store(false);
     interrupt_thread_running.notify_one();
 }
+
+// void RadioNode::RadioStateMachine::rxChanceExpired() {
+//     radio_flag_signal.fetch_or(RX_CHANCE_EXPIRED_BIT);
+//     radio_flag_signal.notify_one();
+
+//     interrupt_thread_running.store(false);
+//     interrupt_thread_running.notify_one();
+// }
 
 bool RadioNode::RadioStateMachine::submitPacketToSend(std::vector<uint8_t> packet) {
     RCLCPP_INFO(get_logger(), "Submitting packet of length %ld to queue", packet.size());
@@ -176,7 +192,7 @@ void RadioNode::radioLoop() {
             while (!rsm.outbound_queue.empty()) {
                 about_to_send.push(rsm.outbound_queue.front());
                 rsm.outbound_queue.pop();
-                RCLCPP_INFO(get_logger(), "Got Packet");
+                RCLCPP_INFO(get_logger(), "Packet Queued");
             }
         }
 
@@ -194,7 +210,6 @@ void RadioNode::radioLoop() {
                 rx_happened = true;
             }
             radio->dumpStatus();
-            // reset rx timer
         }
         if (immediate_reconfig_happened) {
             {
@@ -235,7 +250,8 @@ void RadioNode::radioLoop() {
         }
 
         if (!rsm.isLinkTesting) {
-            RCLCPP_WARN(get_logger() ,"Num transmitted in a row %d queue size %ld", rsm.numTransmittedInARow, about_to_send.size());
+            RCLCPP_WARN(get_logger(), "Num transmitted in a row %d queue size %ld", rsm.numTransmittedInARow,
+                        about_to_send.size());
             if (rsm.state == RSM::NormalState::Idle) {
                 if (about_to_send.size() > 0) {
                     radio->send(about_to_send.front());
@@ -252,19 +268,26 @@ void RadioNode::radioLoop() {
             } else {
                 // if rxing, just rx
                 stillHaveWork = false;
+                // rsm.numTransmittedInARow = 0;
+                // enforced_rx_timer.reset();
             }
         }
     }
 }
+
+// RadioNode::RadioStateMachine::RadioStateMachine(RadioNode &node) : parent(node) {}
+
 void RadioNode::RadioStateMachine::processEvent(RadioNode &node, EventType event) {
     switch (event) {
     case EventType::RxAndContinue:
         state = NormalState::RxEnforced;
+        // parent.enforced_rx_timer->reset();
         break;
     case EventType::RxSingle:
         state = NormalState::Idle;
         break;
     case EventType::RxTimeExpired:
+        // RCLCPP_INFO(get_logger(), "Enforced RX Time expired. Going back to idle");
         state = NormalState::Idle;
         break;
     case EventType::LinkConfigHeard: {

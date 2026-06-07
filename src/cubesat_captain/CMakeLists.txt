@@ -22,6 +22,7 @@ add_executable(captain_node
   src/captain_comms.cpp
   src/pad_state.cpp
   src/flipping_state.cpp
+  src/manual_expert.cpp
   src/status_accumulator.cpp
   src/packet_writer.cpp
 )

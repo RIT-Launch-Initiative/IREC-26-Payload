@@ -223,6 +223,8 @@ bool Sx1262Radio::configure(const RadioProfile &profile) {
         to_coding_rate_enum(profile.coding_rate),
         compute_ldro(profile.spreading_factor, profile.bandwidth_hz),
     };
+    RCLCPP_INFO(logger, "Set SF%d BW%d CR%d LDRO:%d", profile.spreading_factor, profile.bandwidth_hz, profile.coding_rate, mod_params.ldro);
+    
     if (sx126x_set_lora_mod_params(&impl->hal, &mod_params) != SX126X_STATUS_OK) {
         return false;
     }

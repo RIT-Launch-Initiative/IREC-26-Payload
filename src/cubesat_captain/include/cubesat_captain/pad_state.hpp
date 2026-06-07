@@ -97,6 +97,7 @@ class PadExpert : public Expert {
     PadExpert(rclcpp::Logger logger, Levers &levers) : Expert(logger, levers) {}
     ~PadExpert() {}
     void handle_base_accel(const cubesat_msgs::msg::AccelSample &sample) override;
+    void enter_state() override;
 
   private:
     bool has_boosted_ = false;
@@ -109,7 +110,8 @@ class PreboostExpert : public Expert {
     /**
      * Feeds data to the pad expert but handles turning on cameras and leaving expect mode
      */
-    PreboostExpert(rclcpp::Logger logger, Levers &levers, PadExpert *pad_expert) : Expert(logger, levers), pad_expert(pad_expert) {}
+    PreboostExpert(rclcpp::Logger logger, Levers &levers, PadExpert *pad_expert)
+        : Expert(logger, levers), pad_expert(pad_expert) {}
     ~PreboostExpert() {}
     void handle_base_accel(const cubesat_msgs::msg::AccelSample &sample) override;
 

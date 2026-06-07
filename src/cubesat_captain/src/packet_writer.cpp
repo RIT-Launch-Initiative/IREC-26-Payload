@@ -1,5 +1,6 @@
 #include "cubesat_captain/packet_writer.hpp"
 #include "cubesat_comms/packets_p2g.h"
+#include <rclcpp/rclcpp.hpp>
 
 namespace cubesat_captain {
 
@@ -29,6 +30,7 @@ FlightState flight_state(const StatusAccumulator &status) {
     enum FlightPhase phase = flight_phase(status);
     uint16_t status_bits = 0;
     status_bits |= status.has_gps() << StatusBit_GPSHasFix;
+    status_bits |= status.last_arm_status.motor_en << StatusBit_ArmMoving;
     return {phase, status_bits};
 }
 
@@ -62,6 +64,10 @@ void packet_for_landed_heartbeat(const StatusAccumulator &status, LandedHeartbea
     telem.arm_position.elbow_pitch = (int8_t)status.last_arm_status.elbow_angle_deg;
     telem.arm_position.wrist_pitch = (int8_t)status.last_arm_status.wrist_angle_deg;
 
+    auto logger = rclcpp::get_logger("packet_writer");
+    RCLCPP_INFO(logger, "wrote arm anges %d %d %d %d", telem.arm_position.shoulder_yaw,
+                telem.arm_position.shoulder_pitch, telem.arm_position.elbow_pitch, telem.arm_position.wrist_pitch);
+
     if (status.last_power_sample.bus_voltage_v < -32768) {
         telem.battery_mV = -32768;
     } else if (status.last_power_sample.bus_voltage_v > 32767) {
@@ -71,7 +77,6 @@ void packet_for_landed_heartbeat(const StatusAccumulator &status, LandedHeartbea
     }
     telem.motor_temp = 20;
     telem.radio_temp = 20;
-
 }
 void packet_for_actuators(const StatusAccumulator &status, Telemetry &telem) {}
 void packet_for_gnss(const StatusAccumulator &status, Telemetry &telem) {}
@@ -120,7 +125,7 @@ int packet_for_telemetry(const StatusAccumulator &status, cubesat_msgs::msg::Tel
         resp.telemetry.telem_type = TelemetryType_Power;
         packet_for_power(status, resp.telemetry);
         break;
-    default: 
+    default:
         return -1;
     };
 

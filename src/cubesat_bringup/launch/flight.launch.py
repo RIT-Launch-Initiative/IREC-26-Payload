@@ -5,6 +5,12 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 
+'''
+TODO TODO TODO
+- start ros bag
+
+'''
+
 
 def generate_launch_description():
     bringup_pkg = get_package_share_directory("cubesat_bringup")

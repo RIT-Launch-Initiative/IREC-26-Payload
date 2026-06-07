@@ -1,5 +1,6 @@
 #include "cubesat_captain/captain_node.hpp"
 #include "cubesat_captain/flipping_state.hpp"
+#include "cubesat_captain/manual_expert.hpp"
 #include "cubesat_captain/packet_writer.hpp"
 #include "cubesat_captain/pad_state.hpp"
 
@@ -16,15 +17,19 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
              create_client<cubesat_msgs::srv::JogMotor>("/stm/jog_motor"),
              create_client<cubesat_msgs::srv::HoldShut>("/stm/hold_shut"),
              create_client<cubesat_msgs::srv::ZeroArm>("/stm/zero_arm"),
-             rclcpp_action::create_client<cubesat_msgs::action::ExtendArm>(this, "/stm/flip_servo"),
+             rclcpp_action::create_client<cubesat_msgs::action::ExtendArm>(this, "/stm/move_arm"),
              rclcpp_action::create_client<cubesat_msgs::action::FlipServoAction>(this, "/stm/flip_servo"),
-             [this](State state) { this->change_internal_state(state); }} {
+             [this](State state) { this->change_internal_state(state); },
+             [this](cubesat_msgs::msg::TelemetryType::_telem_id_type typ) {
+                 this->primary_heartbeat_type.telem_id = typ;
+             }} {
     flight_dir = declare_parameter<std::string>("flight_dir", "~/unconfigured_flight_dir");
     load_startup_parameters();
+    primary_heartbeat_type.telem_id = cubesat_msgs::msg::TelemetryType::FLIGHT_HEARTBEAT;
 
     RCLCPP_INFO(get_logger(), "Captain Node started: Flight Time: %f", status.current_parameters.flight_time_s);
     RCLCPP_INFO(get_logger(), "Pad HB: %f s, Flight HB %f s, Landed HB %f s", status.current_parameters.pad_heartbeat_s,
-                status.current_parameters.flight_heartbeat_s, status.current_parameters.landed_heartbeat_s);
+                status.current_parameters.secondary_heartbeat_s, status.current_parameters.primary_heartbeat_s);
 
     RCLCPP_INFO(get_logger(), "Battery Low %.2f V, Dangerous %.2f", status.current_parameters.warn_battery_threshold_v,
                 status.current_parameters.danger_battery_threshold_v);
@@ -60,6 +65,12 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     image_metadata_sub = create_subscription<cubesat_msgs::msg::ImageMetadata>(
         "watcher/image_metadata", 10, std::bind(&CaptainNode::handle_image_metadata, this, std::placeholders::_1));
 
+
+    arm_status_sub = create_subscription<cubesat_msgs::msg::ArmStatus>(
+        "stm/arm_status", 10, [this](const cubesat_msgs::msg::ArmStatus::SharedPtr status){
+            this->status.update_arm_status(*status);
+        });
+
     this->request_state_change_service = create_service<cubesat_msgs::srv::RequestStateChange>(
         "/pi/change_state",
         std::bind(&CaptainNode::requestStateChange, this, std::placeholders::_1, std::placeholders::_2));
@@ -70,14 +81,19 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
 
     this->set_buzzer_client = create_client<cubesat_msgs::srv::SetBuzzer>("/pi/buzzer");
 
-    heartbeat_timer =
-        create_wall_timer(std::chrono::milliseconds((int)(1000 * status.current_parameters.pad_heartbeat_s)),
-                          [this] { onHeartbeatTimer(); });
+    primary_heartbeat_timer =
+        create_wall_timer(std::chrono::milliseconds((int)(1000 * status.current_parameters.primary_heartbeat_s)),
+                          [this] { onPrimaryHeartbeatTimer(); });
+
+    secondary_heartbeat_timer =
+        create_wall_timer(std::chrono::milliseconds((int)(1000 * status.current_parameters.secondary_heartbeat_s)),
+                          [this] { onSecondaryHeartbeatTimer(); });
 
     PadExpert *pad_expert = new PadExpert(get_logger(), levers);
     experts[(int)State::Pad] = pad_expert;
     experts[(int)State::Preboost] = new PreboostExpert(get_logger(), levers, pad_expert); // bad and terrible ngl
     experts[(int)State::Flipping] = new FlippingExpert(get_logger(), levers);
+    experts[(int)State::ManualControl] = new ManualExpert(get_logger(), levers);
 
     // enter initial state
     State initial_state = State::Pad;
@@ -109,8 +125,8 @@ void CaptainNode::requestStateChange(const std::shared_ptr<cubesat_msgs::srv::Re
 void CaptainNode::load_startup_parameters() {
     status.current_parameters.flight_time_s = declare_parameter<double>("flight_time_s", 100);
     status.current_parameters.pad_heartbeat_s = declare_parameter<double>("pad_heartbeat_s", 0.05);
-    status.current_parameters.flight_heartbeat_s = declare_parameter<double>("flight_heartbeat_s", 0.2);
-    status.current_parameters.landed_heartbeat_s = declare_parameter<double>("landed_heartbeat_s", 0.2);
+    status.current_parameters.primary_heartbeat_s = declare_parameter<double>("primary_heartbeat_s", 0.2);
+    status.current_parameters.secondary_heartbeat_s = declare_parameter<double>("secondary_heartbeat_s", 0.2);
     status.current_parameters.boost_threshold_mps2 = declare_parameter<double>("boost_threshold_mps2", 7);
 
     status.current_parameters.warn_battery_threshold_v = declare_parameter<double>("warn_battery_threshold_v", 10.75);
@@ -125,6 +141,7 @@ void CaptainNode::change_internal_state(State state) {
         old_expert->exit_state();
     }
 
+    RCLCPP_INFO(get_logger(), "Going from state %d to state: %d", (int)old_state, (int)state);
     cubesat_msgs::msg::FlightState msg;
     msg.stamp = now();
     msg.state = (uint8_t)state;
@@ -135,6 +152,7 @@ void CaptainNode::change_internal_state(State state) {
     if (expert != nullptr) {
         expert->enter_state();
     }
+    onPrimaryHeartbeatTimer(); // inform gs about change asap
 }
 
 void CaptainNode::flag_for_new_flight_dir() { std::ofstream(flight_dir + "/new_dir_please.flag").close(); }
@@ -207,9 +225,17 @@ void CaptainNode::emit_telemetry(cubesat_msgs::msg::TelemetryType telem_type) {
     radio_packet_pub->publish(pkt);
 }
 
-void CaptainNode::onHeartbeatTimer() {
+void CaptainNode::onPrimaryHeartbeatTimer() {
     cubesat_msgs::msg::TelemetryType typ;
-    typ.telem_id = cubesat_msgs::msg::TelemetryType::FLIGHT_HEARTBEAT;
+    typ = primary_heartbeat_type;
+    emit_telemetry(typ);
+}
+
+void CaptainNode::onSecondaryHeartbeatTimer() {
+    cubesat_msgs::msg::TelemetryType typ;
+    typ.telem_id =  primary_heartbeat_type.telem_id == cubesat_msgs::msg::TelemetryType::FLIGHT_HEARTBEAT
+                       ? cubesat_msgs::msg::TelemetryType::LANDED_HEARTBEAT
+                       : cubesat_msgs::msg::TelemetryType::FLIGHT_HEARTBEAT;
     emit_telemetry(typ);
 }
 

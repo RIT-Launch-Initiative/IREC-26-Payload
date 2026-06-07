@@ -5,18 +5,16 @@
 #include "cubesat_msgs/msg/flight_state.hpp"
 #include "cubesat_msgs/msg/power_sample.hpp"
 
-#include "cubesat_msgs/msg/telemetry_type.hpp"
-#include "cubesat_msgs/msg/radio_packet.hpp"
-#include "cubesat_msgs/msg/image_request.hpp"
 #include "cubesat_msgs/msg/image_metadata.hpp"
+#include "cubesat_msgs/msg/image_request.hpp"
+#include "cubesat_msgs/msg/radio_packet.hpp"
 #include "cubesat_msgs/msg/radio_state.hpp"
+#include "cubesat_msgs/msg/telemetry_type.hpp"
 
 #include "cubesat_msgs/srv/request_state_change.hpp"
+#include "cubesat_msgs/srv/send_radio_packet.hpp"
 #include "cubesat_msgs/srv/set_buzzer.hpp"
 #include "cubesat_msgs/srv/telemetry_request.hpp"
-#include "cubesat_msgs/srv/send_radio_packet.hpp"
-
-
 
 #include "rclcpp_action/rclcpp_action.hpp"
 #include <rclcpp/rclcpp.hpp>
@@ -56,9 +54,8 @@ class CaptainNode : public rclcpp::Node {
     void emit_telemetry(cubesat_msgs::msg::TelemetryType telem_type);
     void emit_imagedata(uint8_t image_id, const std::vector<uint16_t> &blocks);
     void emit_image_metadata(const cubesat_msgs::msg::ImageMetadata &metadata);
-    
-    bool loadImageMetadata(std::string path, cubesat_msgs::msg::ImageMetadata &metadata);
 
+    bool loadImageMetadata(std::string path, cubesat_msgs::msg::ImageMetadata &metadata);
 
     void handle_imu(const cubesat_msgs::msg::AccelSample::SharedPtr sample);
     void handle_power(const cubesat_msgs::msg::PowerSample::SharedPtr sample);
@@ -67,8 +64,10 @@ class CaptainNode : public rclcpp::Node {
     void handle_radio_state(const cubesat_msgs::msg::RadioState::SharedPtr state);
     void handle_image_metadata(const cubesat_msgs::msg::ImageMetadata::SharedPtr state);
 
-    void onHeartbeatTimer();
-    void onCallsignTimer(); //TODO transmit callsign every once and a while
+    void onPrimaryHeartbeatTimer();
+    void onSecondaryHeartbeatTimer();
+
+    void onCallsignTimer(); // TODO transmit callsign every once and a while
 
     StatusAccumulator status;
     Levers levers;
@@ -79,7 +78,9 @@ class CaptainNode : public rclcpp::Node {
     bool was_battery_dangerous{false};
     bool was_battery_low{false};
 
-    rclcpp::TimerBase::SharedPtr heartbeat_timer;
+    rclcpp::TimerBase::SharedPtr primary_heartbeat_timer;
+    rclcpp::TimerBase::SharedPtr secondary_heartbeat_timer;
+    cubesat_msgs::msg::TelemetryType primary_heartbeat_type;
 
     rclcpp::Subscription<cubesat_msgs::msg::AccelSample>::SharedPtr imu_sub;
     rclcpp::Subscription<cubesat_msgs::msg::PowerSample>::SharedPtr power_sub;
@@ -89,7 +90,6 @@ class CaptainNode : public rclcpp::Node {
 
     rclcpp::Subscription<cubesat_msgs::msg::RadioState>::SharedPtr radio_state_sub;
     rclcpp::Subscription<cubesat_msgs::msg::ImageMetadata>::SharedPtr image_metadata_sub;
-
 
     rclcpp::Publisher<cubesat_msgs::msg::RadioPacket>::SharedPtr radio_packet_pub;
     rclcpp::Publisher<cubesat_msgs::msg::ImageRequest>::SharedPtr image_req_pub;

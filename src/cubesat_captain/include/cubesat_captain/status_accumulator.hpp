@@ -10,8 +10,8 @@ namespace cubesat_captain {
 struct Parameters {
     double flight_time_s;
     double pad_heartbeat_s;
-    double flight_heartbeat_s;
-    double landed_heartbeat_s;
+    double secondary_heartbeat_s;
+    double primary_heartbeat_s;
     double boost_threshold_mps2;
 
     double warn_battery_threshold_v;

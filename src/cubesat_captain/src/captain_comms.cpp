@@ -5,7 +5,20 @@
 #include <fstream>
 namespace cubesat_captain {
 
+cubesat_msgs::action::ExtendArm::Goal packetToGoal(const ArmTarget &target) {
+    cubesat_msgs::action::ExtendArm::Goal goal;
+
+    goal.shoulder_yaw = target.shoulder_yaw;
+    goal.shoulder_pitch = target.shoulder_pitch;
+    goal.elbow_pitch = target.elbow_pitch;
+    goal.wrist_pitch = target.wrist_pitch;
+    
+    return goal;
+}
+
 void CaptainNode::handle_packet(const cubesat_msgs::msg::RadioPacket::SharedPtr packet) {
+    Expert *expert = expert_for_state(status.active_state());
+
     G2PLinkHeader header;
     UnpackResult res = unpack_g2p_link_header(packet->data.data(), packet->data.size(), &header);
     if (res != UnpackResult_AllGood) {
@@ -54,6 +67,24 @@ void CaptainNode::handle_packet(const cubesat_msgs::msg::RadioPacket::SharedPtr 
         telem_type.telem_id = cmd_and_data.telem_request.telem_type;
         RCLCPP_INFO(get_logger(), "Radio requested telemetry of ype %d", telem_type.telem_id);
         emit_telemetry(telem_type);
+    } break;
+    case Command_SendArmTarget: {
+        if (expert != nullptr) {
+            auto goal = packetToGoal(cmd_and_data.send_arm_to_target);
+            expert->send_arm_to_target(goal);
+        }
+    } break;
+    case Command_SendArmTargetAndComeBack: {
+        if (expert != nullptr) {
+            auto goal = packetToGoal(cmd_and_data.send_arm_to_target_and_come_back);
+            expert->send_arm_to_target_and_come_back(goal);
+        }
+    } break;
+    case Command_SendArmTargetForPhotoAndComeBack: {
+        if (expert != nullptr) {
+            auto goal = packetToGoal(cmd_and_data.send_arm_to_target_for_photo_and_come_back);
+            expert->send_arm_to_target_and_come_back(goal);
+        }
     } break;
     case Command_StartVideo:
         // TODO
@@ -109,7 +140,7 @@ int load_block_data(std::string path, uint8_t *buf) {
         }
         file.read(reinterpret_cast<char *>(buf), size);
         file.close();
-    } catch (std::exception & e) {
+    } catch (std::exception &e) {
         return false;
     }
     return 0;
@@ -122,7 +153,8 @@ void CaptainNode::emit_imagedata(uint8_t image_id, const std::vector<uint16_t> &
     pack_p2g_link_header(&header, pkt.data.data());
 
     for (uint16_t block_id : blocks) {
-        std::string path = flight_dir + "/images/" + std::to_string(image_id) + "/packets/"+std::to_string(block_id)+".bin";
+        std::string path =
+            flight_dir + "/images/" + std::to_string(image_id) + "/packets/" + std::to_string(block_id) + ".bin";
         int res = load_block_data(path, &pkt.data.at(1));
         if (res < 0) {
             RCLCPP_WARN(get_logger(), "Failed to load image id %d block id %d to send", image_id, block_id);
