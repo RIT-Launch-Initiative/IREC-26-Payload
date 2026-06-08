@@ -104,7 +104,7 @@ class RadioNode : public rclcpp::Node {
         RadioProfile incomingProfile;
 
         // STATE
-        void processEvent(RadioNode &node, EventType ev);
+        void processEvent(RadioNode &node, EventType ev, size_t queue_length);
         NormalState state{NormalState::Idle};
         RadioProfile stableProfile;
         uint32_t numTransmittedInARow = 0;

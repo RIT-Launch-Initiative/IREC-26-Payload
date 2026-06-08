@@ -3,7 +3,7 @@
 int pack_lora_link_change(const struct LoraLinkChange *link_change,
                           uint8_t *buf) {
   buf[0] = link_change->num_test_packets;
-  buf[1] = *(uint8_t*)&link_change->num_test_packets;
+  buf[1] = *(uint8_t*)&link_change->dbm;
   
   buf[2] = (link_change->freq >> 24) & 0xff;
   buf[3] = (link_change->freq >> 16) & 0xff;

@@ -87,9 +87,11 @@ void CaptainNode::handle_packet(const cubesat_msgs::msg::RadioPacket::SharedPtr 
         }
     } break;
     case Command_StartVideo:
+        levers.set_runcam_power(true);
         // TODO
         break;
     case Command_StopVideo:
+        levers.set_runcam_power(false);
         // TODO
         break;
     case Command_TakePicture: {

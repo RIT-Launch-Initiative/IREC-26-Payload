@@ -108,7 +108,7 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     PadExpert *pad_expert = new PadExpert(get_logger(), levers);
     experts[(int)State::Pad] = pad_expert;
     experts[(int)State::Preboost] = new PreboostExpert(get_logger(), levers, pad_expert); // bad and terrible ngl
-    experts[(int)State::Preboost] = new FlightExpert(get_logger(), levers);               // bad and terrible ngl
+    experts[(int)State::Flight] = new FlightExpert(get_logger(), levers);               // bad and terrible ngl
     experts[(int)State::Flipping] = new FlippingExpert(get_logger(), levers);
     experts[(int)State::ManualControl] = new ManualExpert(get_logger(), levers);
 

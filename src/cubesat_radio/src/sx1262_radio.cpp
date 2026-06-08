@@ -147,7 +147,9 @@ bool Sx1262Radio::open() {
         return false;
     }
 
-    if (sx126x_set_dio3_as_tcxo_ctrl(&impl->hal, SX126X_TCXO_CTRL_1_8V, true) != SX126X_STATUS_OK) {
+    // delay us = delay LSB * 15.625 us
+    // 1000 us =  64 
+    if (sx126x_set_dio3_as_tcxo_ctrl(&impl->hal, SX126X_TCXO_CTRL_1_8V, 64) != SX126X_STATUS_OK) {
         RCLCPP_WARN(logger, "Failed to set dio3 as TCXO control. Necessary for EBYTE module");
         return false;
     }
@@ -203,7 +205,7 @@ bool Sx1262Radio::configure(const RadioProfile &profile) {
     }
     RCLCPP_INFO(logger, "Configuring %d dbm", (int)profile.tx_power_dbm);
 
-    if (sx126x_set_standby(&impl->hal, SX126X_STANDBY_CFG_RC) != SX126X_STATUS_OK ||
+    if (sx126x_set_standby(&impl->hal, SX126X_STANDBY_CFG_XOSC) != SX126X_STATUS_OK ||
         sx126x_set_pkt_type(&impl->hal, SX126X_PKT_TYPE_LORA) != SX126X_STATUS_OK ||
         sx126x_set_tx_params(&impl->hal, profile.tx_power_dbm, SX126X_RAMP_200_US) != SX126X_STATUS_OK ||
         sx126x_set_rf_freq(&impl->hal, profile.frequency_hz) != SX126X_STATUS_OK ||
@@ -368,7 +370,7 @@ void Sx1262Radio::dumpStatus() {
     sx126x_chip_status_t status;
     sx126x_get_status(&impl->hal, &status);
 
-    RCLCPP_DEBUG(logger, "Radio Status: cmd %d, mode %d", (int)status.cmd_status, (int)status.chip_mode);
+    RCLCPP_INFO(logger, "Radio Status: cmd %d, mode %d", (int)status.cmd_status, (int)status.chip_mode);
 }
 
 bool Sx1262Radio::setReceiveMode() {

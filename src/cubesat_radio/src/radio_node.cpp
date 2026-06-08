@@ -126,6 +126,25 @@ std::vector<uint8_t> link_change_acknowledge_packet(const RadioProfile &profile)
     return packet;
 }
 
+std::vector<uint8_t> link_test_acknowledge() {
+    std::vector<uint8_t> packet{0};
+    packet.resize(1 + 26);
+
+    P2GLinkHeader head{P2GPacketType_LinkTestResponse, 0};
+    pack_p2g_link_header(&head, packet.data());
+    for (size_t i = 0; i < 26; i++) {
+        packet[i + 1] = 'a' + i;
+    }
+    return packet;
+}
+
+void put_queue_length_to_header(std::vector<uint8_t> &packet, size_t queue_length){
+    if (queue_length > MAX_PACKETS_BEFORE_RESPONSE){
+        queue_length = MAX_PACKETS_BEFORE_RESPONSE;
+    }
+    packet[0] &= 0b11000000;
+    packet[0] |= (uint8_t)queue_length;
+}
 std::optional<RadioProfile> change_packet_to_profile(const std::vector<uint8_t> &packet) {
     LoraLinkChange change;
     if (unpack_lora_link_change(packet.data() + 1, packet.size() - 1, &change) == UnpackResult_AllGood) {
@@ -180,6 +199,7 @@ RadioNode::RadioNode(const rclcpp::NodeOptions &options) : rclcpp::Node("radio_n
                                   "SX1262 initialization sequence");
         return;
     }
+    rsm.stableProfile = profile;
 
     if (!radio->setReceiveMode()) {
         RCLCPP_WARN(get_logger(), "Radio RX mode enable failed after configuration");
@@ -192,6 +212,7 @@ RadioNode::RadioNode(const rclcpp::NodeOptions &options) : rclcpp::Node("radio_n
                 profile.frequency_hz, profile.bandwidth_hz, profile.spreading_factor, profile.coding_rate,
                 profile.tx_power_dbm, hardware.spi_device.c_str(), hardware.reset_gpio, hardware.busy_gpio,
                 hardware.dio1_gpio);
+
 
     wait_for_link_test_timer =
         create_wall_timer(std::chrono::milliseconds(30 * 1000), [this] { this->rsm.linkTestChanceExpired(); });
@@ -352,7 +373,7 @@ void RadioNode::radioLoop() {
                 msg.rssi = packet.rssi_dbm;
                 msg.snr = packet.snr_db;
                 rxPacketPub->publish(std::move(msg));
-                RCLCPP_INFO(get_logger(), "Received packet of size: %d processing....", msg.data.size());
+                RCLCPP_INFO(get_logger(), "Received packet of size: %ld processing....", msg.data.size());
                 rx_happened = true;
 
                 auto maybe_header = header_of_packet(packet.data);
@@ -384,37 +405,40 @@ void RadioNode::radioLoop() {
                 } else {
                     RCLCPP_INFO(get_logger(), "Immediate reconfigure of radio failed");
                 }
+                radio->dumpStatus();
+
                 if (!radio->setReceiveMode()) {
                     RCLCPP_WARN(get_logger(), "Radio RX mode enable failed after link change");
                     return;
                 }
+                radio->dumpStatus();
             }
         }
         // now that we've handled the incoming info, we need to decide what to do
         if (link_test_chance_expired) {
-            rsm.processEvent(*this, RSM::EventType::LinkTestTimeExpired);
+            rsm.processEvent(*this, RSM::EventType::LinkTestTimeExpired, about_to_send.size());
         }
         if (rx_happened) {
             if (link_configure_happened) {
                 // set profile under test
                 RCLCPP_INFO(get_logger(), "Link Configure happened");
-                rsm.processEvent(*this, RSM::EventType::LinkConfigHeard);
+                rsm.processEvent(*this, RSM::EventType::LinkConfigHeard, about_to_send.size());
             }
             if (link_test_happened) {
                 RCLCPP_INFO(get_logger(), "Heard Link Test");
-                rsm.processEvent(*this, RSM::EventType::LinkTestHeard);
+                rsm.processEvent(*this, RSM::EventType::LinkTestHeard, about_to_send.size());
             }
             if (expect_more_rx) {
                 RCLCPP_INFO(get_logger(), "Received packet and expecting more");
-                rsm.processEvent(*this, RSM::EventType::RxAndContinue);
+                rsm.processEvent(*this, RSM::EventType::RxAndContinue, about_to_send.size());
             } else {
                 RCLCPP_INFO(get_logger(), "Received packet and NOT expecting more");
-                rsm.processEvent(*this, RSM::EventType::RxSingle);
+                rsm.processEvent(*this, RSM::EventType::RxSingle, about_to_send.size());
             }
         }
         if (rx_chance_expired) {
             RCLCPP_INFO(get_logger(), "Receiving time expired");
-            rsm.processEvent(*this, RSM::EventType::RxTimeExpired);
+            rsm.processEvent(*this, RSM::EventType::RxTimeExpired, about_to_send.size());
         }
 
         if (!rsm.isLinkTesting) {
@@ -422,8 +446,10 @@ void RadioNode::radioLoop() {
                         about_to_send.size());
             if (rsm.state == RSM::NormalState::Idle) {
                 if (about_to_send.size() > 0) {
-                    radio->send(about_to_send.front());
+                    std::vector<uint8_t> packet = about_to_send.front();
                     about_to_send.pop();
+                    put_queue_length_to_header(packet, about_to_send.size());
+                    radio->send(packet);
                 }
                 rsm.numTransmittedInARow++;
                 if (about_to_send.size() > 0) {
@@ -432,14 +458,13 @@ void RadioNode::radioLoop() {
                     stillHaveWork = false;
                 }
                 radio->dumpStatus();
-
             } else {
                 // if rxing, just rx
                 stillHaveWork = false;
                 // rsm.numTransmittedInARow = 0;
                 // enforced_rx_timer.reset();
             }
-        } else  {
+        } else {
             RCLCPP_INFO(get_logger(), "Skipping send because isLinkTesting");
         }
     }
@@ -447,7 +472,7 @@ void RadioNode::radioLoop() {
 
 // RadioNode::RadioStateMachine::RadioStateMachine(RadioNode &node) : parent(node) {}
 
-void RadioNode::RadioStateMachine::processEvent(RadioNode &node, EventType event) {
+void RadioNode::RadioStateMachine::processEvent(RadioNode &node, EventType event, size_t queue_length) {
     switch (event) {
     case EventType::RxAndContinue:
         state = NormalState::RxEnforced;
@@ -464,32 +489,47 @@ void RadioNode::RadioStateMachine::processEvent(RadioNode &node, EventType event
         RCLCPP_INFO(get_logger(),
                     "Link Configure happened. Transmitting Link Configure acknowledge and switching parameters");
         auto packet = link_change_acknowledge_packet(profileUnderTest);
-        node.radio->send(packet);
+        if (!node.radio->send(packet)){
+            RCLCPP_WARN(get_logger(), "Failed to send link change acknowledge");
+        }
         if (!node.radio->configure(profileUnderTest)) {
             RCLCPP_WARN(get_logger(), "Failed to configure for link change");
         }
+        node.radio->dumpStatus();
         if (!node.radio->setReceiveMode()) {
             RCLCPP_WARN(get_logger(), "Failed to set recv mode after configure link change");
         }
+        node.radio->dumpStatus();
 
         isLinkTesting = true;
         node.wait_for_link_test_timer->reset();
     } break;
     case EventType::LinkTestTimeExpired:
+        profileUnderTest = stableProfile;
         RCLCPP_INFO(get_logger(), "Link test time expired, going back");
         isLinkTesting = false;
         if (!node.radio->configure(stableProfile)) {
             RCLCPP_WARN(get_logger(), "Failed to configure during revert to old params");
         }
+        node.radio->dumpStatus();
+
         node.wait_for_link_test_timer->cancel();
         if (!node.radio->setReceiveMode()) {
             RCLCPP_WARN(get_logger(), "Radio RX mode enable failed after link change revert");
             return;
         }
+        node.radio->dumpStatus();
         break;
     case EventType::LinkTestHeard:
         RCLCPP_INFO(get_logger(), "Link test heard, sticking with it");
         // send link test ack
+        std::vector<uint8_t> packet = link_test_acknowledge();
+        put_queue_length_to_header(packet, queue_length);
+
+        if (!node.radio->send(packet)){
+            RCLCPP_WARN(get_logger(), "Failed to send link test acknowledge");
+        }
+        node.radio->dumpStatus();
         stableProfile = profileUnderTest;
         isLinkTesting = false;
         node.wait_for_link_test_timer->cancel();

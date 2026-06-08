@@ -33,8 +33,8 @@ struct Levers {
     rclcpp_action::Client<cubesat_msgs::action::FlipServoAction>::SharedPtr flip_servo_action_client; // /stm/flip_servo
     // things an expert can do
 
-    std::function<void()> start_flight_timer;
     std::function<void()> stop_flight_timer;
+    std::function<void()> start_flight_timer;
     
     std::function<void(bool enabled)> set_runcam_power;
     std::function<void(State state)> goto_state;
