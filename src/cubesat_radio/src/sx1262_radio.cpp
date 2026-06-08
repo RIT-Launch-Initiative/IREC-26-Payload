@@ -203,7 +203,7 @@ bool Sx1262Radio::configure(const RadioProfile &profile) {
     if (errors != 0) {
         RCLCPP_WARN(logger, "Errors on pre set params: %d", (int)errors);
     }
-    RCLCPP_INFO(logger, "Configuring %d dbm", (int)profile.tx_power_dbm);
+    RCLCPP_INFO(logger, "Configuring %d dbm at %f MHz", (int)profile.tx_power_dbm, profile.frequency_hz/1000000.0);
 
     if (sx126x_set_standby(&impl->hal, SX126X_STANDBY_CFG_XOSC) != SX126X_STATUS_OK ||
         sx126x_set_pkt_type(&impl->hal, SX126X_PKT_TYPE_LORA) != SX126X_STATUS_OK ||
