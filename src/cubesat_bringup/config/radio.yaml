@@ -4,8 +4,8 @@ radio_node:
     # LoRa primary profile
     frequency_hz: 425450000
     bandwidth_hz: 125000
-    spreading_factor: 12
-    coding_rate: 8
+    spreading_factor: 9
+    coding_rate: 5
     tx_power_dbm: -8
     # were using high power pretty sure
     # 

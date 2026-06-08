@@ -5,7 +5,149 @@
 #include <fstream>
 #include <utility>
 
+#include "cubesat_comms/lora.h"
+#include "cubesat_comms/packets_g2p.h"
+#include "cubesat_comms/packets_p2g.h"
+
 namespace cubesat_radio {
+SpreadingFactor psf_to_lsf(uint8_t sf) {
+    switch (sf) {
+    case 7:
+        return SF_7;
+    case 8:
+        return SF_8;
+    case 9:
+        return SF_9;
+    case 10:
+        return SF_10;
+    case 11:
+        return SF_11;
+    case 12:
+        return SF_12;
+    }
+    return SF_12;
+}
+
+Bandwidth pbw_to_lbw(uint32_t bandwidth_hz) {
+    if (bandwidth_hz >= 500000) {
+        return BW_500;
+    }
+    if (bandwidth_hz >= 250000) {
+        return BW_250;
+    }
+    if (bandwidth_hz >= 125000) {
+        return BW_125;
+    }
+    if (bandwidth_hz >= 62500) {
+        return BW_62_5;
+    }
+    return BW_125;
+}
+CodingRate pcr_to_lcr(uint8_t coding_rate) {
+    switch (coding_rate) {
+    case 5:
+        return CodingRate::CR_4_5;
+    case 6:
+        return CodingRate::CR_4_6;
+    case 7:
+        return CodingRate::CR_4_7;
+    case 8:
+        return CodingRate::CR_4_8;
+    default:
+        return CodingRate::CR_4_5;
+    }
+}
+
+uint8_t lsf_to_psf(SpreadingFactor sf) {
+    switch (sf) {
+    case SF_7:
+        return 7;
+    case SF_8:
+        return 8;
+    case SF_9:
+        return 9;
+    case SF_10:
+        return 10;
+    case SF_11:
+        return 11;
+    case SF_12:
+        return 12;
+    default:
+        return SF_12;
+    }
+}
+
+uint32_t lbw_to_pbw(Bandwidth bw) {
+    switch (bw) {
+    case Bandwidth::BW_62_5:
+        return 62500;
+    case Bandwidth::BW_125:
+        return 125000;
+    case Bandwidth::BW_250:
+        return 250000;
+    case Bandwidth::BW_500:
+        return 500000;
+    }
+    return 125000;
+}
+uint8_t lcr_to_pcr(CodingRate coding_rate) {
+    switch (coding_rate) {
+    case CodingRate::CR_4_5:
+        return 5;
+    case CodingRate::CR_4_6:
+        return 6;
+    case CodingRate::CR_4_7:
+        return 7;
+    case CodingRate::CR_4_8:
+        return 8;
+    default:
+        return 8;
+    }
+}
+
+std::vector<uint8_t> link_change_acknowledge_packet(const RadioProfile &profile) {
+    SpreadingFactor sf = psf_to_lsf(profile.spreading_factor);
+    Bandwidth bw = pbw_to_lbw(profile.bandwidth_hz);
+    CodingRate cr = pcr_to_lcr(profile.coding_rate);
+
+    LoraLinkChange change{
+        .num_test_packets = 1,
+        .dbm = profile.tx_power_dbm,
+        .freq = profile.frequency_hz,
+        .sf = sf,
+        .bw = bw,
+        .cr = cr,
+    };
+    std::vector<uint8_t> packet{0};
+    packet.resize(SIZEOF_PACKED_LORA_LINK_CHANGE + 1);
+    P2GLinkHeader head{P2GPacketType_LinkControl, 0};
+    pack_p2g_link_header(&head, packet.data());
+    pack_lora_link_change(&change, &packet.at(1));
+    return packet;
+}
+
+std::optional<RadioProfile> change_packet_to_profile(const std::vector<uint8_t> &packet) {
+    LoraLinkChange change;
+    if (unpack_lora_link_change(packet.data() + 1, packet.size() - 1, &change) == UnpackResult_AllGood) {
+        RadioProfile prof{
+            .frequency_hz = change.freq,
+            .bandwidth_hz = lbw_to_pbw(change.bw),
+            .spreading_factor = lsf_to_psf(change.sf),
+            .coding_rate = lcr_to_pcr(change.cr),
+            .tx_power_dbm = change.dbm,
+        };
+        return prof;
+    }
+    return std::nullopt;
+}
+
+std::optional<G2PLinkHeader> header_of_packet(const std::vector<uint8_t> &pack) {
+    G2PLinkHeader header;
+    if (unpack_g2p_link_header(pack.data(), pack.size(), &header) == UnpackResult_AllGood) {
+        return header;
+    }
+    return std::nullopt;
+}
 
 RadioNode::RadioNode(const rclcpp::NodeOptions &options) : rclcpp::Node("radio_node", options) {
     const auto hardware = loadHardwareConfig();
@@ -51,7 +193,9 @@ RadioNode::RadioNode(const rclcpp::NodeOptions &options) : rclcpp::Node("radio_n
                 profile.tx_power_dbm, hardware.spi_device.c_str(), hardware.reset_gpio, hardware.busy_gpio,
                 hardware.dio1_gpio);
 
-    // enforced_rx_timer = create_wall_timer(std::chrono::milliseconds(1000), [this] { onEnforcedRxTimer(); });
+    wait_for_link_test_timer =
+        create_wall_timer(std::chrono::milliseconds(30 * 1000), [this] { this->rsm.linkTestChanceExpired(); });
+    wait_for_link_test_timer->cancel();
 
     rsm.radio_flag_signal.store(0);
     rxThread = std::thread(&RadioNode::radioLoop, this);
@@ -129,13 +273,13 @@ void RadioNode::RadioStateMachine::signalStopping() {
     interrupt_thread_running.notify_one();
 }
 
-// void RadioNode::RadioStateMachine::rxChanceExpired() {
-//     radio_flag_signal.fetch_or(RX_CHANCE_EXPIRED_BIT);
-//     radio_flag_signal.notify_one();
+void RadioNode::RadioStateMachine::linkTestChanceExpired() {
+    radio_flag_signal.fetch_or(LINK_TEST_CHANCE_EXPIRED_BIT);
+    radio_flag_signal.notify_one();
 
-//     interrupt_thread_running.store(false);
-//     interrupt_thread_running.notify_one();
-// }
+    interrupt_thread_running.store(false);
+    interrupt_thread_running.notify_one();
+}
 
 bool RadioNode::RadioStateMachine::submitPacketToSend(std::vector<uint8_t> packet) {
     RCLCPP_INFO(get_logger(), "Submitting packet of length %ld to queue", packet.size());
@@ -159,8 +303,10 @@ rclcpp::Logger RadioNode::RadioStateMachine::get_logger() { return rclcpp::get_l
 void RadioNode::radioLoop() {
     std::queue<std::vector<uint8_t>> about_to_send{};
     bool stillHaveWork = false;
+    size_t iter = 0;
 
     while (rclcpp::ok()) {
+        iter++;
         // if still have work, iterate so we catch new events but don't block
         if (!stillHaveWork) {
             RCLCPP_DEBUG(get_logger(), "Waiting for work");
@@ -197,7 +343,6 @@ void RadioNode::radioLoop() {
         }
 
         if (interrupt_happened) {
-            // maybe check if interrupt happened bc of rx or some other reason
             auto maybe_packet = radio->receive();
             if (maybe_packet) {
                 auto packet = *maybe_packet;
@@ -207,7 +352,26 @@ void RadioNode::radioLoop() {
                 msg.rssi = packet.rssi_dbm;
                 msg.snr = packet.snr_db;
                 rxPacketPub->publish(std::move(msg));
+                RCLCPP_INFO(get_logger(), "Received packet of size: %d processing....", msg.data.size());
                 rx_happened = true;
+
+                auto maybe_header = header_of_packet(packet.data);
+                if (maybe_header) {
+                    G2PLinkHeader header = *maybe_header;
+                    if (header.packet_type == G2PPacketType_LinkControl) {
+                        auto newProf = change_packet_to_profile(packet.data);
+                        if (newProf) {
+                            rsm.profileUnderTest = *newProf;
+                            link_configure_happened = true;
+                        }
+
+                    } else if (header.packet_type == G2PPacketType_LinkTest) {
+                        link_test_happened = true;
+                    }
+                    if (header.expected_packets_before_response > 0) {
+                        expect_more_rx = true;
+                    }
+                }
             }
             radio->dumpStatus();
         }
@@ -219,6 +383,10 @@ void RadioNode::radioLoop() {
                     RCLCPP_INFO(get_logger(), "Immediate reconfigure of radio succeeded");
                 } else {
                     RCLCPP_INFO(get_logger(), "Immediate reconfigure of radio failed");
+                }
+                if (!radio->setReceiveMode()) {
+                    RCLCPP_WARN(get_logger(), "Radio RX mode enable failed after link change");
+                    return;
                 }
             }
         }
@@ -271,6 +439,8 @@ void RadioNode::radioLoop() {
                 // rsm.numTransmittedInARow = 0;
                 // enforced_rx_timer.reset();
             }
+        } else  {
+            RCLCPP_INFO(get_logger(), "Skipping send because isLinkTesting");
         }
     }
 }
@@ -293,20 +463,36 @@ void RadioNode::RadioStateMachine::processEvent(RadioNode &node, EventType event
     case EventType::LinkConfigHeard: {
         RCLCPP_INFO(get_logger(),
                     "Link Configure happened. Transmitting Link Configure acknowledge and switching parameters");
-        // TODO!!!!
-        // radio->send()
-        // radio->configure(profileUnderTest);
-        // start link test timer
+        auto packet = link_change_acknowledge_packet(profileUnderTest);
+        node.radio->send(packet);
+        if (!node.radio->configure(profileUnderTest)) {
+            RCLCPP_WARN(get_logger(), "Failed to configure for link change");
+        }
+        if (!node.radio->setReceiveMode()) {
+            RCLCPP_WARN(get_logger(), "Failed to set recv mode after configure link change");
+        }
+
+        isLinkTesting = true;
+        node.wait_for_link_test_timer->reset();
     } break;
     case EventType::LinkTestTimeExpired:
+        RCLCPP_INFO(get_logger(), "Link test time expired, going back");
         isLinkTesting = false;
-        node.radio->configure(stableProfile);
-        // TODO send nack
+        if (!node.radio->configure(stableProfile)) {
+            RCLCPP_WARN(get_logger(), "Failed to configure during revert to old params");
+        }
+        node.wait_for_link_test_timer->cancel();
+        if (!node.radio->setReceiveMode()) {
+            RCLCPP_WARN(get_logger(), "Radio RX mode enable failed after link change revert");
+            return;
+        }
         break;
     case EventType::LinkTestHeard:
+        RCLCPP_INFO(get_logger(), "Link test heard, sticking with it");
         // send link test ack
         stableProfile = profileUnderTest;
         isLinkTesting = false;
+        node.wait_for_link_test_timer->cancel();
         break;
     }
 }
@@ -316,7 +502,7 @@ void RadioNode::handleTxPacket(const cubesat_msgs::msg::RadioPacket::SharedPtr m
     }
 
     if (rsm.submitPacketToSend(msg->data)) {
-        RCLCPP_INFO(get_logger(), "Queued radio TX from topic: %zu bytes", msg->data.size());
+        // RCLCPP_INFO(get_logger(), "Queued radio TX from topic: %zu bytes", msg->data.size());
     }
 }
 

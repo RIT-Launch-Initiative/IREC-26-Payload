@@ -75,32 +75,32 @@ def generate_launch_description():
         package="cubesat_radio",
         executable="radio_node",
         name="radio_node",
-parameters=[radio_cfg, shared],
+        parameters=[radio_cfg, shared],
         respawn=True,
         respawn_delay=2.0,
         arguments=["--ros-args", "--log-level", "INFO"],
     )
 
     # 1280, 960 def works
-    camera = Node(
-            package="camera_ros",
-            executable="camera_node",
-            name="camera",
-            output="screen",
-            respawn=True,
-            respawn_delay=20.0,
-            parameters=[{
-                "camera": "/base/soc/i2c0mux/i2c@1/imx219@10",
-                "width": 1280,
-                "height": 800,
-                "format": "YUYV",
-                "FrameDurationLimits": [500000,500000],
-                "AeEnabled": True,
-                "AwbEnabled": True,
-                "AfMode": "Continuous",
-            }],
-            arguments=["--ros-args", "--log-level", "WARN"],
-        )
+    # camera = Node(
+    #         package="camera_ros",
+    #         executable="camera_node",
+    #         name="camera",
+    #         output="screen",
+    #         respawn=True,
+    #         respawn_delay=20.0,
+    #         parameters=[{
+    #             "camera": "/base/soc/i2c0mux/i2c@1/imx219@10",
+    #             "width": 1280,
+    #             "height": 800,
+    #             "format": "YUYV",
+    #             "FrameDurationLimits": [500000,500000],
+    #             "AeEnabled": True,
+    #             "AwbEnabled": True,
+    #             "AfMode": "Continuous",
+    #         }],
+    #         arguments=["--ros-args", "--log-level", "WARN"],
+    #     )
     
     watch = Node(
             package="cubesat_watch",
@@ -108,16 +108,20 @@ parameters=[radio_cfg, shared],
             name="watch",
             output="screen",
             parameters = [shared],
+            respawn=True,
+            respawn_delay=2.0,
             arguments=["--ros-args", "--log-level", "INFO"],
 
         )
     
     bag = ExecuteProcess(
-            cmd=['ros2', 'bag', 'record', '-s', 'mcap', '--compression-mode file', '--compression-format', 'zstd',  '-a', '-x', "'/camera/image_raw|/camera/image_raw/compressed'"],
+            cmd=['ros2', 'bag', 'record', '-s', 'mcap', '--compression-mode file', '-d', '60', '--compression-format', 'zstd',  '-a', '-x', "'/camera/image_raw|/camera/image_raw/compressed'"],
             shell=True,
             output='screen',
             log_cmd=True,
             cwd = flight_dir,
+            respawn=True, 
+            respawn_delay=2.0, 
         )
 
     return LaunchDescription(
@@ -128,7 +132,7 @@ parameters=[radio_cfg, shared],
             stm_bridge,
             # control,
             radio,
-            camera,
+            # camera,
             watch,
             bag
         ]

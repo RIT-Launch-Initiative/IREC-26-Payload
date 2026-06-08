@@ -74,10 +74,6 @@ void packet_for_landed_heartbeat(const StatusAccumulator &status, LandedHeartbea
     telem.arm_position.elbow_pitch = (int8_t)status.last_arm_status.elbow_angle_deg;
     telem.arm_position.wrist_pitch = (int8_t)status.last_arm_status.wrist_angle_deg;
 
-    auto logger = rclcpp::get_logger("packet_writer");
-    RCLCPP_INFO(logger, "wrote arm anges %d %d %d %d", telem.arm_position.shoulder_yaw,
-                telem.arm_position.shoulder_pitch, telem.arm_position.elbow_pitch, telem.arm_position.wrist_pitch);
-
     if (status.last_power_sample.bus_voltage_v < -32768) {
         telem.battery_mV = -32768;
     } else if (status.last_power_sample.bus_voltage_v > 32767) {

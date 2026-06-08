@@ -1,8 +1,8 @@
 #include "cubesat_captain/captain_node.hpp"
+#include "cubesat_captain/autonomous_experts.hpp"
+#include "cubesat_captain/flight_expert.hpp"
 #include "cubesat_captain/flipping_expert.hpp"
 #include "cubesat_captain/manual_expert.hpp"
-#include "cubesat_captain/flight_expert.hpp"
-#include "cubesat_captain/autonomous_experts.hpp"
 
 #include "cubesat_captain/packet_writer.hpp"
 #include "cubesat_captain/pad_expert.hpp"
@@ -96,8 +96,8 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
         create_wall_timer(std::chrono::milliseconds((int)(1000 * status.current_parameters.secondary_heartbeat_s)),
                           [this] { onSecondaryHeartbeatTimer(); });
 
-    flight_timer = create_wall_timer(
-        std::chrono::milliseconds((int)(1000 * status.current_parameters.flight_time_s)), [this] {
+    flight_timer =
+        create_wall_timer(std::chrono::milliseconds((int)(1000 * status.current_parameters.flight_time_s)), [this] {
             Expert *expert = expert_for_state(this->status.active_state());
             if (expert != nullptr) {
                 expert->handle_flight_timer_expired();
@@ -108,7 +108,7 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     PadExpert *pad_expert = new PadExpert(get_logger(), levers);
     experts[(int)State::Pad] = pad_expert;
     experts[(int)State::Preboost] = new PreboostExpert(get_logger(), levers, pad_expert); // bad and terrible ngl
-    experts[(int)State::Preboost] = new FlightExpert(get_logger(), levers);   // bad and terrible ngl
+    experts[(int)State::Preboost] = new FlightExpert(get_logger(), levers);               // bad and terrible ngl
     experts[(int)State::Flipping] = new FlippingExpert(get_logger(), levers);
     experts[(int)State::ManualControl] = new ManualExpert(get_logger(), levers);
 
@@ -124,6 +124,11 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     msg.state = (uint8_t)initial_state;
     status.update_flight_state(msg);
     state_pub->publish(msg);
+
+    auto request = std::make_shared<cubesat_msgs::srv::SetBuzzer::Request>();
+    request->repeat_count = 4;
+    request->beep_code = cubesat_msgs::srv::SetBuzzer::Request::BEEP_CODE_SWUNG;
+    set_buzzer_client->async_send_request(request);
 
     Expert *expert = expert_for_state(initial_state);
     if (expert != nullptr) {

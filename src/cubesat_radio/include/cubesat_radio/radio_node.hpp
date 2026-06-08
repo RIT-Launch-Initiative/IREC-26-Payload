@@ -118,6 +118,6 @@ class RadioNode : public rclcpp::Node {
     using RSM = RadioStateMachine;
     // ONLY TOUCHED BY RADIO THREAD
     RadioStateMachine rsm;//{*this};
-    // rclcpp::TimerBase::SharedPtr enforced_rx_timer;
+    rclcpp::TimerBase::SharedPtr wait_for_link_test_timer;
 };
 } // namespace cubesat_radio

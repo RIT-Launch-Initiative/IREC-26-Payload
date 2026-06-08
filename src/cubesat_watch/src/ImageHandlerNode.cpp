@@ -1,18 +1,17 @@
 #include "image_handler/ImageHandlerNode.hpp"
 
+#include "image_handler/ImageTaker.hpp"
 #include "rclcpp/serialization.hpp"
 #include <algorithm>
-#include <cv_bridge/cv_bridge.h>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
-#include <libcamera/libcamera.h>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 #include <ostream>
 #include <sstream>
 #include <thread>
 
-using namespace libcamera;
 using namespace std::chrono_literals;
 
 extern "C" {
@@ -23,41 +22,28 @@ ImageHandlerNode::ImageHandlerNode() : Node("image_compressor") {
     imageRequestSub = this->create_subscription<cubesat_msgs::msg::ImageRequest>(
         "/watcher/image_request", 10, std::bind(&ImageHandlerNode::handleImageRequest, this, std::placeholders::_1));
 
-    rawImageSub = this->create_subscription<sensor_msgs::msg::Image>(
-        "/camera/image_raw", 10, std::bind(&ImageHandlerNode::handleRawImage, this, std::placeholders::_1));
-
     imageMetadataPub = create_publisher<cubesat_msgs::msg::ImageMetadata>("watcher/image_metadata", 10);
 
     flight_dir = declare_parameter<std::string>("flight_dir", "~/unconfigured_flight_dir");
     saveDirectory = flight_dir + "/images/";
     callsign = this->declare_parameter<std::string>("callsign", "KD2YIE");
 
-
     auto maybe_next_image = nextImageIdForDir(flight_dir);
-    if (maybe_next_image){
+    if (maybe_next_image) {
         uint32_t next_image = *maybe_next_image;
-        if (next_image>0){
+        if (next_image > 0) {
             next_image--;
         }
         auto path = pathForMetadata(next_image);
         cubesat_msgs::msg::ImageMetadata meta;
-        if (loadImageMetadata(path, meta)){
+        if (loadImageMetadata(path, meta)) {
             imageMetadataPub->publish(meta);
         }
     }
-
-
 }
 
 ImageHandlerNode::~ImageHandlerNode() = default;
-
 void ImageHandlerNode::handleImageRequest(const cubesat_msgs::msg::ImageRequest::SharedPtr msg) {
-    std::lock_guard<std::mutex> lock(imageMutex);
-
-    if (!lastRawImage) {
-        RCLCPP_WARN(this->get_logger(), "No raw image available for request");
-        return;
-    }
     auto maybe_id = nextImageIdForDir(saveDirectory);
     if (!maybe_id) {
         RCLCPP_ERROR(get_logger(), "Could not find next id to save image at");
@@ -65,8 +51,15 @@ void ImageHandlerNode::handleImageRequest(const cubesat_msgs::msg::ImageRequest:
     }
     uint32_t image_id = *maybe_id;
 
+    bool gotImage = take_global_image();
+    if (!gotImage) {
+        RCLCPP_ERROR(get_logger(), "Failed to take image");
+        return;
+    }
+
     if (!createFolderForImage(image_id)) {
         RCLCPP_ERROR(get_logger(), "Could not create directory for image");
+        free_global_image();
         return;
     }
 
@@ -75,13 +68,13 @@ void ImageHandlerNode::handleImageRequest(const cubesat_msgs::msg::ImageRequest:
     RCLCPP_INFO(this->get_logger(), "Processing image request (quality=%u) crop (%u,%u %u,%u ) -> ID %d", msg->quality,
                 msg->left, msg->top, msg->right, msg->bottom, image_id);
 
-    saveRawImageToDisk(image_id);
+    saveRawImageToDisk(get_global_image().mat, image_id);
     RCLCPP_INFO(this->get_logger(), "Saved raw image");
 
     rclcpp::Time img_time = now();
 
     bool doFec = false; // handled by lora layer
-    uint16_t num_blocks = compressAndSave(image_id, msg->quality, doFec, pktSize, msg->left, msg->right, msg->top,
+    uint16_t num_blocks = compressAndSave(get_global_image().mat, image_id, msg->quality, doFec, pktSize, msg->left, msg->right, msg->top,
                                           msg->bottom, msg->output_width);
 
     RCLCPP_INFO(this->get_logger(), "Completed SSDV encoding of image %u", image_id);
@@ -93,6 +86,7 @@ void ImageHandlerNode::handleImageRequest(const cubesat_msgs::msg::ImageRequest:
     meta.num_blocks = num_blocks;
     saveImageMetadata(meta, image_id);
     imageMetadataPub->publish(meta);
+    free_global_image();
 }
 
 std::optional<uint32_t> stringToImageId(const std::string &str) {
@@ -133,24 +127,9 @@ std::optional<uint32_t> ImageHandlerNode::nextImageIdForDir(const std::string &d
     return max_id + 1;
 }
 
-void ImageHandlerNode::handleRawImage(const sensor_msgs::msg::Image::SharedPtr msg) {
-    std::lock_guard<std::mutex> lock(imageMutex);
-    lastRawImage = msg;
-}
-
-void ImageHandlerNode::saveRawImageToDisk(uint32_t image_id) {
-    if (!lastRawImage) {
-        RCLCPP_WARN(this->get_logger(), "No raw image to save");
-        return;
-    }
-
+void ImageHandlerNode::saveRawImageToDisk(cv::Mat cvImage, uint32_t image_id) {
     try {
         std::filesystem::create_directories(saveDirectory);
-
-        const auto cvImageYuv = cv_bridge::toCvShare(lastRawImage, lastRawImage->encoding);
-        RCLCPP_INFO(get_logger(), "Saving raw image with encoding %s", lastRawImage->encoding.c_str());
-        cv::Mat cvImage;
-        cv::cvtColor(cvImageYuv->image, cvImage, cv::COLOR_YUV2BGR_YUYV);
 
         auto filePath = pathForFullImage(image_id);
         if (cv::imwrite(filePath, cvImage)) {
@@ -158,8 +137,6 @@ void ImageHandlerNode::saveRawImageToDisk(uint32_t image_id) {
         } else {
             RCLCPP_ERROR(this->get_logger(), "Failed to write image to %s", filePath.c_str());
         }
-    } catch (const cv_bridge::Exception &e) {
-        RCLCPP_ERROR(this->get_logger(), "cv_bridge exception while saving image: %s", e.what());
     } catch (const std::exception &e) {
         RCLCPP_ERROR(this->get_logger(), "Exception while saving image: %s", e.what());
     }
@@ -231,18 +208,17 @@ uint16_t ImageHandlerNode::encodeSSDV(std::vector<uint8_t> &data, bool fec, uint
     return totalPackets;
 }
 
-uint16_t ImageHandlerNode::compressAndSave(uint8_t imageId, uint8_t quality, bool fec, uint16_t maxPacketSize,
-                                           uint16_t cropLeft, uint16_t cropRight, uint16_t cropTop, uint16_t cropBottom,
-                                           uint16_t downscaleWidth) {
+uint16_t ImageHandlerNode::compressAndSave(cv::Mat &fullImage, uint8_t imageId, uint8_t quality, bool fec,
+                                           uint16_t maxPacketSize, uint16_t cropLeft, uint16_t cropRight,
+                                           uint16_t cropTop, uint16_t cropBottom, uint16_t downscaleWidth) {
 
     try {
 
         RCLCPP_INFO(get_logger(), "Cropping to x(%d,%d) y(%d,%d)", cropLeft, cropTop, cropRight, cropBottom);
 
-        const auto fullCvImage = cv_bridge::toCvShare(lastRawImage, lastRawImage->encoding);
-        cv::Mat fullImageYuv = fullCvImage->image;
-        cv::Mat fullImage;
-        cv::cvtColor(fullImageYuv, fullImage, cv::COLOR_YUV2BGR_YUYV);
+        // cv::Mat fullImageYuv = fullCvImage->image;
+        // cv::Mat fullImage;
+        // cv::cvtColor(fullImageYuv, fullImage, cv::COLOR_YUV2BGR_YUYV);
 
         cv::Rect roi(cropLeft, cropTop, cropRight - cropLeft, cropBottom - cropTop);
         cv::Mat croppedImage = fullImage(roi);
@@ -290,8 +266,6 @@ uint16_t ImageHandlerNode::compressAndSave(uint8_t imageId, uint8_t quality, boo
 
         return encodeSSDV(jpegData, fec, quality, maxPacketSize, imageId);
 
-    } catch (const cv_bridge::Exception &e) {
-        RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
     } catch (const std::exception &e) {
         RCLCPP_ERROR(this->get_logger(), "Exception during SSDV encoding: %s", e.what());
     }
@@ -374,7 +348,6 @@ void ImageHandlerNode::saveImageMetadata(const cubesat_msgs::msg::ImageMetadata 
     file.close();
 }
 
-
 bool ImageHandlerNode::loadImageMetadata(std::string path, cubesat_msgs::msg::ImageMetadata &metadata) {
     try {
         // read file
@@ -404,4 +377,3 @@ bool ImageHandlerNode::loadImageMetadata(std::string path, cubesat_msgs::msg::Im
         return false;
     }
 }
-

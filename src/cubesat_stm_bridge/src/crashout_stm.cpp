@@ -8,7 +8,6 @@
 #include <thread>
 #include <unistd.h>
 
-
 namespace StmBridge {
 constexpr std::chrono::duration reset_time{std::chrono::milliseconds(100)};
 constexpr std::chrono::duration between_time{std::chrono::milliseconds(2)};
@@ -200,10 +199,14 @@ void CrashoutSTM::reset() {
     recover();
 }
 
-Status status_from_transfer(const Transfer &resp){
-        Status status{};
+void CrashoutSTM::hard_reset() {
+    // std::this_thread::sleep_for(hard_reset_time);
+}
+
+Status status_from_transfer(const Transfer &resp) {
+    Status status{};
     status.status_word = (resp.at(0) << 8) | resp.at(1);
-    status.pose = decode_pose(resp.data()+2);
+    status.pose = decode_pose(resp.data() + 2);
     status.uptime_lsw = (resp.at(6) << 8) | resp.at(7);
     return status;
 }
@@ -227,7 +230,7 @@ std::optional<ArmPose> CrashoutSTM::getArmPoseEst() {
     }
     // 0 - 2 is status bits and response kind
     // TODO check response kind
-    return decode_pose(response->data()+2);
+    return decode_pose(response->data() + 2);
 }
 std::optional<ArmPose> CrashoutSTM::getArmTarget() {
     Transfer outbound{(uint8_t)SpiCommand::R_ReadArmTarget};
@@ -238,7 +241,7 @@ std::optional<ArmPose> CrashoutSTM::getArmTarget() {
     }
     // 0 - 2 is status bits and response kind
     // TODO check response kind
-    return decode_pose(response->data()+2);
+    return decode_pose(response->data() + 2);
 }
 
 void CrashoutSTM::recover() {
@@ -257,23 +260,22 @@ void encode_vec3_16(Vec3_16 v, uint8_t *buf) {
 
 Vec3_16 decode_vec3_16(uint8_t *buf) {
     return {
-        .x = (int16_t) ((buf[0] << 8) | buf[1]),
-        .y = (int16_t) ((buf[2] << 8) | buf[3]),
-        .z = (int16_t) ((buf[4] << 8) | buf[5]),
+        .x = (int16_t)((buf[0] << 8) | buf[1]),
+        .y = (int16_t)((buf[2] << 8) | buf[3]),
+        .z = (int16_t)((buf[4] << 8) | buf[5]),
     };
 }
 
-std::optional<Status> CrashoutSTM::setBaseImuAndReturnStatus(const Vec3_16 &base){
+std::optional<Status> CrashoutSTM::setBaseImuAndReturnStatus(const Vec3_16 &base) {
     Transfer outbound{(uint8_t)SpiCommand::WriteBaseAccel};
-    encode_vec3_16(base, outbound.data()+1);
+    encode_vec3_16(base, outbound.data() + 1);
     auto ret = transceive(outbound);
-    if (!ret){
+    if (!ret) {
         return {};
     }
-    
+
     return status_from_transfer(*ret);
 }
-
 
 std::optional<Transfer> CrashoutSTM::transceive(const Transfer &outbound) {
     Transfer inbound{0};

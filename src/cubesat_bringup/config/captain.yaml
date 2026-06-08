@@ -4,7 +4,7 @@
 
     pad_heartbeat_s: 20.0 # 1 per 20 seconds
     primary_heartbeat_s: 20.0
-    secondary_heartbeat_s: 60.0 
+    secondary_heartbeat_s: 120.0 
 
     boost_threshold_mps2: 7.0
 

@@ -5,6 +5,14 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(CMAKE_C_STANDARD 23)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
+
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
@@ -31,10 +39,9 @@ set_target_properties(ssdv PROPERTIES
 add_executable(cubesat_watch_node
   src/main.cpp
   src/ImageHandlerNode.cpp
+  src/ImageTaker.cpp
 )
 
-
-message(STATUS "rclcpp CMake path: ${rclcpp_DIR}")
 
 target_link_directories(cubesat_watch_node PRIVATE ${rclcpp_DIR}/../../../lib/)
 
@@ -60,7 +67,6 @@ target_include_directories(cubesat_watch_node PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party
   ${rclcpp_DIR}/../../../include/libcamera/
 )
-message("libcam includes"   ${rclcpp_DIR}/../../../include/libcamera/)
 install(TARGETS cubesat_watch_node
   DESTINATION lib/${PROJECT_NAME}
 )

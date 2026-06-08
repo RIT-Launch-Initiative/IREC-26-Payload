@@ -1,4 +1,8 @@
 #pragma once
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <stdint.h>
 #include "common.h"
@@ -51,3 +55,7 @@ int pack_lora_link_change(const struct LoraLinkChange *link_change,
                            uint8_t *buf);
 // buf is at least length 7
 enum UnpackResult unpack_lora_link_change(const uint8_t *buf, int len, struct LoraLinkChange *link_change);
+
+#ifdef __cplusplus
+}
+#endif
