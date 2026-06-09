@@ -24,11 +24,15 @@ class ManualExpert : public Expert {
 
     void arm_response_cb(GoalHandleExtendArm::SharedPtr);
     void arm_result_cb(const GoalHandleExtendArm::WrappedResult &);
-    void arm_feedback_cb(GoalHandleExtendArm::SharedPtr,
-                                       const std::shared_ptr<const ExtendArm::Feedback> feedback);
+    void arm_feedback_cb(GoalHandleExtendArm::SharedPtr, const std::shared_ptr<const ExtendArm::Feedback> feedback);
 
     void send_arm_to_target(const cubesat_msgs::action::ExtendArm::Goal &goal) override;
     void send_arm_to_target_and_come_back(const cubesat_msgs::action::ExtendArm::Goal &goal);
     void send_arm_to_target_and_come_back_with_photo(const cubesat_msgs::action::ExtendArm::Goal &goal);
+
+    void flip_response_cb(GoalHandleFlipServoAction::SharedPtr future);
+    void flip_result_cb(const GoalHandleFlipServoAction::WrappedResult &result);
+    void flip_feedback_cb(GoalHandleFlipServoAction::SharedPtr,
+                          const std::shared_ptr<const FlipServoAction::Feedback> feedback);
 };
 } // namespace cubesat_captain

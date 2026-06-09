@@ -144,6 +144,7 @@ void FlippingExpert::enter_state() {
     servo.id = cubesat_msgs::msg::FlipServo::FLIP_SERVO_2;
     start_flip(servo);
     levers.set_primary_heartbeat(cubesat_msgs::msg::TelemetryType::LANDED_HEARTBEAT);
+    levers.set_runcam_power(true);
 }
 
 void FlippingExpert::flip_response_cb(GoalHandleFlipServoAction::SharedPtr goal_handle) {
