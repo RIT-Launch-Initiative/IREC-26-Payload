@@ -33,9 +33,10 @@ struct Levers {
     rclcpp_action::Client<cubesat_msgs::action::FlipServoAction>::SharedPtr flip_servo_action_client; // /stm/flip_servo
     // things an expert can do
 
+    std::function<void(uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint8_t)> take_picture;
     std::function<void()> stop_flight_timer;
     std::function<void()> start_flight_timer;
-    
+
     std::function<void(bool enabled)> set_runcam_power;
     std::function<void(State state)> goto_state;
     std::function<void(cubesat_msgs::msg::TelemetryType::_telem_id_type type)> set_primary_heartbeat;

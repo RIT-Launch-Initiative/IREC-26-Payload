@@ -59,6 +59,8 @@ class RadioNode : public rclcpp::Node {
     std::thread rxThread;
     std::unique_ptr<Sx1262Radio> radio;
 
+    rclcpp::TimerBase::SharedPtr watchdog_timer;
+
     struct RadioStateMachine {
         // RadioStateMachine(RadioNode &node);
         // STATE
@@ -81,7 +83,6 @@ class RadioNode : public rclcpp::Node {
         bool submitPacketToSend(std::vector<uint8_t> packet);
         void setProfileNow(RadioProfile prof);
 
-        void rxChanceExpired();
         void linkTestChanceExpired();
 
         rclcpp::Logger get_logger();
@@ -117,7 +118,7 @@ class RadioNode : public rclcpp::Node {
 
     using RSM = RadioStateMachine;
     // ONLY TOUCHED BY RADIO THREAD
-    RadioStateMachine rsm;//{*this};
+    RadioStateMachine rsm; //{*this};
     rclcpp::TimerBase::SharedPtr wait_for_link_test_timer;
 };
 } // namespace cubesat_radio

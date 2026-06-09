@@ -12,7 +12,7 @@ cubesat_msgs::action::ExtendArm::Goal packetToGoal(const ArmTarget &target) {
     goal.shoulder_pitch = target.shoulder_pitch;
     goal.elbow_pitch = target.elbow_pitch;
     goal.wrist_pitch = target.wrist_pitch;
-    
+
     return goal;
 }
 
@@ -95,21 +95,9 @@ void CaptainNode::handle_packet(const cubesat_msgs::msg::RadioPacket::SharedPtr 
         // TODO
         break;
     case Command_TakePicture: {
-        cubesat_msgs::msg::ImageRequest req;
-        req.left = cmd_and_data.take_picture.left;
-        req.right = cmd_and_data.take_picture.right;
-        req.top = cmd_and_data.take_picture.top;
-        req.bottom = cmd_and_data.take_picture.bottom;
-        req.output_width = cmd_and_data.take_picture.output_width;
-        req.quality = cmd_and_data.take_picture.quality;
-
-        status.last_good_gps_position(&req.latitude, &req.longitude, &req.altitude);
-
-        req.arm_shoulder_yaw = status.last_arm_status.shoulder_yaw_deg;
-        req.arm_shoulder_pitch = status.last_arm_status.shoulder_pitch_deg;
-        req.arm_elbow_pitch = status.last_arm_status.elbow_angle_deg;
-        req.arm_wrist_pitch = status.last_arm_status.wrist_angle_deg;
-        image_req_pub->publish(req);
+        ask_for_image(cmd_and_data.take_picture.left, cmd_and_data.take_picture.right, cmd_and_data.take_picture.top,
+                      cmd_and_data.take_picture.bottom, cmd_and_data.take_picture.output_width,
+                      cmd_and_data.take_picture.quality);
     } break;
     case Command_ImageMetadata: {
         uint8_t image_id = cmd_and_data.metadata_ask_image_id;

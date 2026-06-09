@@ -185,7 +185,7 @@ void StmBridgeNode::tickArm(){
     }
     using ArmState = cubesat_msgs::msg::ArmState;
     bool still_moving = last_status.state.state == ArmState::STATE_ARM_MOVING;
- 
+
     if (now() < arm_should_show_progress_time) {
         // don't cancel just bc we asked before it realized we commanded it
         still_moving = true;
@@ -193,10 +193,11 @@ void StmBridgeNode::tickArm(){
 
     bool overtime = now() > arm_timeout_time;
     if (!still_moving || overtime) {
-        RCLCPP_INFO(get_logger(), "Finished Arm Movement. Overtime %s", overtime ? "yes" : "no");
+        RCLCPP_INFO(get_logger(), "Finished Arm Movement. Overtime %s, movement failed: %s", overtime ? "yes" : "no", last_status.arm_move_failed ? "yes" : "no");
         // say end (if not cancelled, success)
         auto result = std::make_shared<ExtendArm::Result>();
-        result->success = !overtime;
+        result->success = !overtime && !last_status.arm_move_failed;
+        result->overcurrent = last_status.arm_move_failed;
         if (overtime) {
             arm_action_handle->abort(result);
         } else {
@@ -404,7 +405,7 @@ void StmBridgeNode::handle_arm_accepted(const std::shared_ptr<GoalHandleExtendAr
                 arm_start_time.nanoseconds(), arm_should_show_progress_time.nanoseconds(),
                 arm_timeout_time.nanoseconds());
 
-    crashout.startArmMovement();
+    crashout.startArmMovement(goal.ignore_stall);
 }
 
 void StmBridgeNode::handle_imu(const cubesat_msgs::msg::AccelSample::SharedPtr sample) { last_pi_imu = *sample; }

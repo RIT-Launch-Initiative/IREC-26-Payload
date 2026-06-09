@@ -63,6 +63,19 @@ FaceAndConfidence FlippingExpert::which_side(const cubesat_msgs::msg::AccelSampl
 
 void FlippingExpert::start_flip(cubesat_msgs::msg::FlipServo &servo) {
     using namespace std::placeholders;
+    switch (servo.id) {
+    case cubesat_msgs::msg::FlipServo::FLIP_SERVO_1:
+        opened_side_1 = true;
+        break;
+
+    case cubesat_msgs::msg::FlipServo::FLIP_SERVO_2:
+        opened_side_2 = true;
+        break;
+
+    case cubesat_msgs::msg::FlipServo::FLIP_SERVO_3:
+        opened_side_3 = true;
+        break;
+    }
 
     auto goal = FlipServoAction::Goal();
     goal.servo_id = servo;
@@ -83,6 +96,11 @@ void FlippingExpert::start_flip(cubesat_msgs::msg::FlipServo &servo) {
 }
 
 void FlippingExpert::flip_finish() {
+    attempts++;
+    if (attempts > allowed_attempts_total) {
+        levers.goto_state(State::Emergency);
+        return;
+    }
     FaceAndConfidence face = which_side(levers.status.last_base_accel);
     cubesat_msgs::msg::FlipServo servo{};
     if (face.side == cubesat_msgs::msg::PayloadOrientation::SIDE_DOUBLE_WALL) {
@@ -99,8 +117,20 @@ void FlippingExpert::flip_finish() {
         start_flip(servo);
 
     } else if (face.side == cubesat_msgs::msg::PayloadOrientation::SIDE_BACKPLATE) {
-        RCLCPP_INFO(logger, "Got good and am upright");
-        levers.goto_state(State::Unfolding);
+        RCLCPP_INFO(logger, "Got good and am upright, checking that all doors are open");
+        servo.id = cubesat_msgs::msg::FlipServo::FLIP_SERVO_1;
+        if (!opened_side_2) {
+            servo.id = cubesat_msgs::msg::FlipServo::FLIP_SERVO_2;
+            start_flip(servo);
+        } else if (!opened_side_1) {
+            servo.id = cubesat_msgs::msg::FlipServo::FLIP_SERVO_1;
+            start_flip(servo);
+        } else if (!opened_side_3) {
+            servo.id = cubesat_msgs::msg::FlipServo::FLIP_SERVO_3;
+            start_flip(servo);
+        } else {
+            levers.goto_state(State::Unfolding);
+        }
     } else {
         RCLCPP_WARN(logger, "Very unlucky. Going to flail double wall");
         servo.id = cubesat_msgs::msg::FlipServo::FLIP_SERVO_1;
@@ -114,18 +144,24 @@ void FlippingExpert::enter_state() {
     servo.id = cubesat_msgs::msg::FlipServo::FLIP_SERVO_2;
     start_flip(servo);
     levers.set_primary_heartbeat(cubesat_msgs::msg::TelemetryType::LANDED_HEARTBEAT);
-
 }
 
-void FlippingExpert::flip_response_cb(GoalHandleFlipServoAction::SharedPtr) {
-    RCLCPP_INFO(logger, "Response CB");
+void FlippingExpert::flip_response_cb(GoalHandleFlipServoAction::SharedPtr goal_handle) {
+    if (goal_handle) {
+        RCLCPP_INFO(logger, "Flip servo accepted");
+    } else {
+        RCLCPP_INFO(logger, "Flip servo rejected");
+        // give it another go
+        flip_finish();
+    }
 }
 void FlippingExpert::flip_result_cb(const GoalHandleFlipServoAction::WrappedResult &) {
     RCLCPP_INFO(logger, "Result CB");
     flip_finish();
     RCLCPP_INFO(logger, "Post Finish");
 }
-void FlippingExpert::flip_feedback_cb([[maybe_unused]]GoalHandleFlipServoAction::SharedPtr,
-                                      [[maybe_unused]] const std::shared_ptr<const FlipServoAction::Feedback> feedback) {}
+void FlippingExpert::flip_feedback_cb(
+    [[maybe_unused]] GoalHandleFlipServoAction::SharedPtr,
+    [[maybe_unused]] const std::shared_ptr<const FlipServoAction::Feedback> feedback) {}
 
 } // namespace cubesat_captain

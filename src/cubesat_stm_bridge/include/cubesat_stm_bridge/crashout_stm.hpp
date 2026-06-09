@@ -37,7 +37,7 @@ class CrashoutSTM {
     void setPoseEst(const ArmPose &pose);
     void setArmTarget(const ArmPose &pose);
     void setJogMovement(uint8_t motor, uint16_t iterations, int16_t mv);
-    void startArmMovement();
+    void startArmMovement(bool allow_overcurrent);
 
     void startJogMovement();
     void startServoMovement(FlipServo servoid);

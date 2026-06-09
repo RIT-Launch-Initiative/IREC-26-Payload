@@ -54,6 +54,8 @@ enum class SpiCommand : uint8_t {
     WriteJog = 23,
 
     R_ReadTemps = 24, // stm, link1, link2
+    StartArmNoCurrentLimit = 25,
+
 };
 
 bool CrashoutSTM::open(std::string spidev, uint32_t speed_hz) {
@@ -120,8 +122,8 @@ void CrashoutSTM::startJogMovement() {
     uint8_t cmd = (uint8_t)SpiCommand::StartJog;
     transceive(Transfer{cmd});
 }
-void CrashoutSTM::startArmMovement() {
-    uint8_t cmd = (uint8_t)SpiCommand::StartArm;
+void CrashoutSTM::startArmMovement(bool allow_overcurrent) {;
+    uint8_t cmd = (uint8_t)(allow_overcurrent ? SpiCommand::StartArmNoCurrentLimit : SpiCommand::StartArm);
     transceive(Transfer{cmd});
 }
 

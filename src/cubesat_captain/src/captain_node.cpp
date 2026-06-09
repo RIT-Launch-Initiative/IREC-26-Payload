@@ -22,6 +22,8 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
              create_client<cubesat_msgs::srv::ZeroArm>("/stm/zero_arm"),
              rclcpp_action::create_client<cubesat_msgs::action::ExtendArm>(this, "/stm/move_arm"),
              rclcpp_action::create_client<cubesat_msgs::action::FlipServoAction>(this, "/stm/flip_servo"),
+             [this](uint16_t left, uint16_t right, uint16_t top, uint16_t bottom, uint16_t output_width,
+                    uint8_t quality) { this->ask_for_image(left, right, top, bottom, output_width, quality); },
              [this]() { this->flight_timer->reset(); },
              [this]() { this->flight_timer->cancel(); },
              [this](bool enabled) { this->setCamera(enabled); },
@@ -108,8 +110,10 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     PadExpert *pad_expert = new PadExpert(get_logger(), levers);
     experts[(int)State::Pad] = pad_expert;
     experts[(int)State::Preboost] = new PreboostExpert(get_logger(), levers, pad_expert); // bad and terrible ngl
-    experts[(int)State::Flight] = new FlightExpert(get_logger(), levers);               // bad and terrible ngl
+    experts[(int)State::Flight] = new FlightExpert(get_logger(), levers);                 // bad and terrible ngl
     experts[(int)State::Flipping] = new FlippingExpert(get_logger(), levers);
+    experts[(int)State::Unfolding] = new ArmExpert(get_logger(), levers, ArmState::Unfolding);
+    experts[(int)State::AutoCamera] = new ArmExpert(get_logger(), levers, ArmState::Panoramaing);
     experts[(int)State::ManualControl] = new ManualExpert(get_logger(), levers);
 
     if (!openCameraLine()) {
@@ -134,6 +138,25 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     if (expert != nullptr) {
         expert->enter_state();
     }
+}
+
+void CaptainNode::ask_for_image(uint16_t left, uint16_t right, uint16_t top, uint16_t bottom, uint16_t output_width,
+                                uint8_t quality) {
+    cubesat_msgs::msg::ImageRequest req;
+    req.left = left;
+    req.right = right;
+    req.top = top;
+    req.bottom = bottom;
+    req.output_width = output_width;
+    req.quality = quality;
+
+    status.last_good_gps_position(&req.latitude, &req.longitude, &req.altitude);
+
+    req.arm_shoulder_yaw = status.last_arm_status.shoulder_yaw_deg;
+    req.arm_shoulder_pitch = status.last_arm_status.shoulder_pitch_deg;
+    req.arm_elbow_pitch = status.last_arm_status.elbow_angle_deg;
+    req.arm_wrist_pitch = status.last_arm_status.wrist_angle_deg;
+    image_req_pub->publish(req);
 }
 
 void CaptainNode::requestStateChange(const std::shared_ptr<cubesat_msgs::srv::RequestStateChange::Request> request,

@@ -9,21 +9,21 @@ void FlightExpert::enter_state() {
     levers.status.set_takeoff_time();
     levers.set_runcam_power(true);
 
-
     auto request = std::make_shared<cubesat_msgs::srv::HoldShut::Request>();
     request->should_hold = true;
     levers.hold_shut_client->async_send_request(request);
-   
 }
 
-void FlightExpert::exit_state() { levers.stop_flight_timer(); }
+void FlightExpert::exit_state() {
+    auto request = std::make_shared<cubesat_msgs::srv::HoldShut::Request>();
+    request->should_hold = false;
+    levers.hold_shut_client->async_send_request(request);
+
+    levers.stop_flight_timer();
+}
 
 void FlightExpert::handle_flight_timer_expired() {
     RCLCPP_INFO(logger, "Flight Timer expired");
-    auto request = std::make_shared<cubesat_msgs::srv::HoldShut::Request>();
-    request->should_hold = true;
-    levers.hold_shut_client->async_send_request(request);
-    
     levers.goto_state(State::Flipping);
 }
 

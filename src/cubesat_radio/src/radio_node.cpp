@@ -138,8 +138,8 @@ std::vector<uint8_t> link_test_acknowledge() {
     return packet;
 }
 
-void put_queue_length_to_header(std::vector<uint8_t> &packet, size_t queue_length){
-    if (queue_length > MAX_PACKETS_BEFORE_RESPONSE){
+void put_queue_length_to_header(std::vector<uint8_t> &packet, size_t queue_length) {
+    if (queue_length > MAX_PACKETS_BEFORE_RESPONSE) {
         queue_length = MAX_PACKETS_BEFORE_RESPONSE;
     }
     packet[0] &= 0b11000000;
@@ -213,10 +213,14 @@ RadioNode::RadioNode(const rclcpp::NodeOptions &options) : rclcpp::Node("radio_n
                 profile.tx_power_dbm, hardware.spi_device.c_str(), hardware.reset_gpio, hardware.busy_gpio,
                 hardware.dio1_gpio);
 
-
     wait_for_link_test_timer =
         create_wall_timer(std::chrono::milliseconds(30 * 1000), [this] { this->rsm.linkTestChanceExpired(); });
     wait_for_link_test_timer->cancel();
+
+    watchdog_timer = create_wall_timer(std::chrono::seconds(5 * 60), [this] {
+        RCLCPP_WARN(get_logger(), "Havent received anything in a while. Shutting down");
+        rclcpp::shutdown();
+    });
 
     rsm.radio_flag_signal.store(0);
     rxThread = std::thread(&RadioNode::radioLoop, this);
@@ -359,13 +363,14 @@ void RadioNode::radioLoop() {
             while (!rsm.outbound_queue.empty()) {
                 about_to_send.push(rsm.outbound_queue.front());
                 rsm.outbound_queue.pop();
-                RCLCPP_INFO(get_logger(), "Packet Queued");
+                RCLCPP_DEBUG(get_logger(), "Packet Queued");
             }
         }
 
         if (interrupt_happened) {
             auto maybe_packet = radio->receive();
             if (maybe_packet) {
+                watchdog_timer->reset();
                 auto packet = *maybe_packet;
                 cubesat_msgs::msg::RadioPacket msg;
                 msg.stamp = now();
@@ -442,10 +447,10 @@ void RadioNode::radioLoop() {
         }
 
         if (!rsm.isLinkTesting) {
-            RCLCPP_WARN(get_logger(), "Num transmitted in a row %d queue size %ld", rsm.numTransmittedInARow,
-                        about_to_send.size());
             if (rsm.state == RSM::NormalState::Idle) {
                 if (about_to_send.size() > 0) {
+                    RCLCPP_WARN(get_logger(), "TXing:  queue size %ld", about_to_send.size());
+
                     std::vector<uint8_t> packet = about_to_send.front();
                     about_to_send.pop();
                     put_queue_length_to_header(packet, about_to_send.size());
@@ -489,7 +494,7 @@ void RadioNode::RadioStateMachine::processEvent(RadioNode &node, EventType event
         RCLCPP_INFO(get_logger(),
                     "Link Configure happened. Transmitting Link Configure acknowledge and switching parameters");
         auto packet = link_change_acknowledge_packet(profileUnderTest);
-        if (!node.radio->send(packet)){
+        if (!node.radio->send(packet)) {
             RCLCPP_WARN(get_logger(), "Failed to send link change acknowledge");
         }
         if (!node.radio->configure(profileUnderTest)) {
@@ -526,7 +531,7 @@ void RadioNode::RadioStateMachine::processEvent(RadioNode &node, EventType event
         std::vector<uint8_t> packet = link_test_acknowledge();
         put_queue_length_to_header(packet, queue_length);
 
-        if (!node.radio->send(packet)){
+        if (!node.radio->send(packet)) {
             RCLCPP_WARN(get_logger(), "Failed to send link test acknowledge");
         }
         node.radio->dumpStatus();
@@ -542,7 +547,7 @@ void RadioNode::handleTxPacket(const cubesat_msgs::msg::RadioPacket::SharedPtr m
     }
 
     if (rsm.submitPacketToSend(msg->data)) {
-        // RCLCPP_INFO(get_logger(), "Queued radio TX from topic: %zu bytes", msg->data.size());
+        RCLCPP_DEBUG(get_logger(), "Queued radio TX from topic: %zu bytes", msg->data.size());
     }
 }
 

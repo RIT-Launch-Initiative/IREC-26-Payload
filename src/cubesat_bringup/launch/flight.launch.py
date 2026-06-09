@@ -6,11 +6,6 @@ from launch_ros.actions import Node
 
 from ament_index_python.packages import get_package_share_directory
 
-'''
-TODO TODO TODO
-- start ros bag
-
-'''
 
 
 def generate_launch_description():
@@ -109,7 +104,7 @@ def generate_launch_description():
             output="screen",
             parameters = [shared],
             respawn=True,
-            respawn_delay=2.0,
+            respawn_delay=0.2, # teehee, single use node
             arguments=["--ros-args", "--log-level", "INFO"],
 
         )

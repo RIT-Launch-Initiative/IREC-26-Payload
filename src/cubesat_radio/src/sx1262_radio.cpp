@@ -370,7 +370,7 @@ void Sx1262Radio::dumpStatus() {
     sx126x_chip_status_t status;
     sx126x_get_status(&impl->hal, &status);
 
-    RCLCPP_INFO(logger, "Radio Status: cmd %d, mode %d", (int)status.cmd_status, (int)status.chip_mode);
+    RCLCPP_DEBUG(logger, "Radio Status: cmd %d, mode %d", (int)status.cmd_status, (int)status.chip_mode);
 }
 
 bool Sx1262Radio::setReceiveMode() {

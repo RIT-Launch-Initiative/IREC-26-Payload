@@ -32,6 +32,15 @@ class FlippingExpert : public Expert {
                           const std::shared_ptr<const FlipServoAction::Feedback> feedback);
 
     static FaceAndConfidence which_side(const cubesat_msgs::msg::AccelSample &sample);
+
+  private:
+    static constexpr size_t allowed_attempts_total = 20;
+    size_t attempts = 0;
+
+
+    bool opened_side_1 = false;
+    bool opened_side_2 = false;
+    bool opened_side_3 = false;
 };
 
 } // namespace cubesat_captain

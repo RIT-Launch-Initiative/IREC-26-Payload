@@ -23,7 +23,6 @@
 
 #include <gpiod.h>
 
-
 namespace cubesat_captain {
 
 class CaptainNode : public rclcpp::Node {
@@ -60,6 +59,9 @@ class CaptainNode : public rclcpp::Node {
 
     bool loadImageMetadata(std::string path, cubesat_msgs::msg::ImageMetadata &metadata);
 
+    void ask_for_image(uint16_t left, uint16_t right, uint16_t top, uint16_t bottom, uint16_t output_width,
+                       uint8_t quality);
+
     void handle_imu(const cubesat_msgs::msg::AccelSample::SharedPtr sample);
     void handle_power(const cubesat_msgs::msg::PowerSample::SharedPtr sample);
     void handle_gnss(const cubesat_msgs::msg::GpsSample::SharedPtr sample);
@@ -81,17 +83,15 @@ class CaptainNode : public rclcpp::Node {
     std::string gpio_chip_name;
     bool was_battery_dangerous{false};
     bool was_battery_low{false};
-    
+
     gpiod_chip *gpio_chip{nullptr};
     gpiod_line *camera_gpio{nullptr};
     bool openCameraLine();
     bool setCamera(bool on);
 
-
     rclcpp::TimerBase::SharedPtr primary_heartbeat_timer;
     rclcpp::TimerBase::SharedPtr secondary_heartbeat_timer;
     rclcpp::TimerBase::SharedPtr flight_timer;
-
 
     cubesat_msgs::msg::TelemetryType primary_heartbeat_type;
 
