@@ -14,6 +14,7 @@
   <exec_depend>cubesat_stm_bridge</exec_depend>
   <exec_depend>cubesat_control</exec_depend>
   <exec_depend>cubesat_radio</exec_depend>
+  <exec_depend>cubesat_flight_logger</exec_depend>
   <exec_depend>cubesat_vision</exec_depend>
   <exec_depend>ament_index_python</exec_depend>
   <exec_depend>launch</exec_depend>

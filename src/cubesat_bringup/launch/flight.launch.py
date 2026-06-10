@@ -97,6 +97,16 @@ def generate_launch_description():
     #         arguments=["--ros-args", "--log-level", "WARN"],
     #     )
     
+    flight_logger = Node(
+        package="cubesat_flight_logger",
+        executable="flight_logger_node",
+        name="flight_logger_node",
+        parameters=[shared],
+        respawn=True,
+        respawn_delay=2.0,
+        arguments=["--ros-args", "--log-level", "INFO"],
+    )
+
     watch = Node(
             package="cubesat_watch",
             executable="cubesat_watch_node",
@@ -127,6 +137,7 @@ def generate_launch_description():
             stm_bridge,
             # control,
             radio,
+            flight_logger,
             # camera,
             watch,
             bag
