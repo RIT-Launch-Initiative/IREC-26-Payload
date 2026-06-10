@@ -14,3 +14,7 @@
 
     gpio_chip: "gpiochip0"
     runcam_pin: 1
+
+    # node-silence watchdog
+    node_silence_timeout_s: 5.0
+    health_check_period_s: 1.0

@@ -54,6 +54,7 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     }
 
     state_pub = create_publisher<cubesat_msgs::msg::FlightState>("pi/flight_state", 10);
+    system_health_pub = create_publisher<cubesat_msgs::msg::SystemHealth>("pi/system_health", 10);
     image_req_pub = create_publisher<cubesat_msgs::msg::ImageRequest>("/watcher/image_request", 10);
 
     radio_packet_pub = create_publisher<cubesat_msgs::msg::RadioPacket>("/radio/tx_packet", 68);
@@ -77,8 +78,10 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
         "watcher/image_metadata", 10, std::bind(&CaptainNode::handle_image_metadata, this, std::placeholders::_1));
 
     arm_status_sub = create_subscription<cubesat_msgs::msg::ArmStatus>(
-        "stm/arm_status", 10,
-        [this](const cubesat_msgs::msg::ArmStatus::SharedPtr status) { this->status.update_arm_status(*status); });
+        "stm/arm_status", 10, [this](const cubesat_msgs::msg::ArmStatus::SharedPtr status) {
+            this->last_stm_seen = now();
+            this->status.update_arm_status(*status);
+        });
 
     this->request_state_change_service = create_service<cubesat_msgs::srv::RequestStateChange>(
         "/pi/change_state",
@@ -97,6 +100,14 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     secondary_heartbeat_timer =
         create_wall_timer(std::chrono::milliseconds((int)(1000 * status.current_parameters.secondary_heartbeat_s)),
                           [this] { onSecondaryHeartbeatTimer(); });
+
+    node_silence_timeout_s = declare_parameter<double>("node_silence_timeout_s", 5.0);
+    double health_check_period_s = declare_parameter<double>("health_check_period_s", 1.0);
+    last_pi_io_seen = rclcpp::Time(0, 0, get_clock()->get_clock_type());
+    last_stm_seen = rclcpp::Time(0, 0, get_clock()->get_clock_type());
+    last_radio_seen = rclcpp::Time(0, 0, get_clock()->get_clock_type());
+    health_timer = create_wall_timer(std::chrono::milliseconds((int)(1000 * health_check_period_s)),
+                                     [this] { onHealthTimer(); });
 
     flight_timer =
         create_wall_timer(std::chrono::milliseconds((int)(1000 * status.current_parameters.flight_time_s)), [this] {
@@ -211,6 +222,7 @@ void CaptainNode::restart_system() {
 }
 
 void CaptainNode::handle_imu(const cubesat_msgs::msg::AccelSample::SharedPtr sample) {
+    last_pi_io_seen = now();
     status.update_base_accel(*sample);
 
     Expert *expert = expert_for_state(status.active_state());
@@ -220,6 +232,7 @@ void CaptainNode::handle_imu(const cubesat_msgs::msg::AccelSample::SharedPtr sam
 }
 
 void CaptainNode::handle_power(const cubesat_msgs::msg::PowerSample::SharedPtr sample) {
+    last_pi_io_seen = now();
     status.update_power_sample(*sample);
 
     bool battery_low = sample->bus_voltage_v < status.current_parameters.warn_battery_threshold_v;
@@ -250,6 +263,7 @@ void CaptainNode::handle_power(const cubesat_msgs::msg::PowerSample::SharedPtr s
 }
 
 void CaptainNode::handle_gnss(const cubesat_msgs::msg::GpsSample::SharedPtr sample) {
+    last_pi_io_seen = now();
     status.update_gps_sample(*sample);
 }
 
@@ -296,7 +310,72 @@ void CaptainNode::requestTelemetry(const std::shared_ptr<cubesat_msgs::srv::Tele
 }
 
 void CaptainNode::handle_radio_state(const cubesat_msgs::msg::RadioState::SharedPtr state) {
-    RCLCPP_INFO(get_logger(), "Radio state changed: queue length %d", state->queue_depth);
+    last_radio_seen = now();
+    RCLCPP_DEBUG(get_logger(), "Radio state heartbeat: queue length %d", state->queue_depth);
+}
+
+void CaptainNode::noteNodeSilent(const char *name) {
+    RCLCPP_WARN(get_logger(), "Node '%s' has gone silent (nothing heard for > %.1f s)", name, node_silence_timeout_s);
+    auto request = std::make_shared<cubesat_msgs::srv::SetBuzzer::Request>();
+    request->repeat_count = 5;
+    request->beep_code = cubesat_msgs::srv::SetBuzzer::Request::BEEP_CODE_3_EQUAL;
+    set_buzzer_client->async_send_request(request);
+}
+
+void CaptainNode::onHealthTimer() {
+    const rclcpp::Time t = now();
+    const rclcpp::Time never(0, 0, get_clock()->get_clock_type());
+
+    auto silent_for = [&](const rclcpp::Time &last) -> float {
+        if (last == never) {
+            return -1.0f;
+        }
+        return (float)(t - last).seconds();
+    };
+
+    cubesat_msgs::msg::SystemHealth health;
+    health.stamp = t;
+    health.pi_io_silent_s = silent_for(last_pi_io_seen);
+    health.stm_bridge_silent_s = silent_for(last_stm_seen);
+    health.radio_silent_s = silent_for(last_radio_seen);
+
+    auto ok = [&](float silent_s) {
+        return silent_s >= 0.0f && silent_s <= (float)node_silence_timeout_s;
+    };
+    health.pi_io_ok = ok(health.pi_io_silent_s);
+    health.stm_bridge_ok = ok(health.stm_bridge_silent_s);
+    health.radio_ok = ok(health.radio_silent_s);
+
+    system_health_pub->publish(health);
+
+    // only complain on the healthy -> silent transition so a dead node doesn't buzz forever
+    if (pi_io_was_ok && !health.pi_io_ok) {
+        noteNodeSilent("pi_io");
+    }
+    if (radio_was_ok && !health.radio_ok) {
+        noteNodeSilent("radio");
+    }
+    if (stm_was_ok && !health.stm_bridge_ok) {
+        noteNodeSilent("stm_bridge");
+
+        // if the arm is being driven autonomously, a silent stm_bridge means we have no
+        // feedback and no timeout path: abort the extension rather than flail blind
+        State active = status.active_state();
+        if (active == State::Unfolding || active == State::AutoCamera) {
+            if (!stm_silence_abort_sent) {
+                RCLCPP_ERROR(get_logger(), "stm_bridge silent mid arm sequence: cancelling arm goals");
+                levers.extend_arm_client->async_cancel_all_goals();
+                stm_silence_abort_sent = true;
+            }
+        }
+    }
+    if (health.stm_bridge_ok) {
+        stm_silence_abort_sent = false;
+    }
+
+    pi_io_was_ok = health.pi_io_ok;
+    stm_was_ok = health.stm_bridge_ok;
+    radio_was_ok = health.radio_ok;
 }
 
 void CaptainNode::handle_image_metadata(const cubesat_msgs::msg::ImageMetadata::SharedPtr meta) {

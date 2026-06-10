@@ -17,6 +17,7 @@ cubesat_msgs::action::ExtendArm::Goal packetToGoal(const ArmTarget &target) {
 }
 
 void CaptainNode::handle_packet(const cubesat_msgs::msg::RadioPacket::SharedPtr packet) {
+    last_radio_seen = now();
     Expert *expert = expert_for_state(status.active_state());
 
     G2PLinkHeader header;

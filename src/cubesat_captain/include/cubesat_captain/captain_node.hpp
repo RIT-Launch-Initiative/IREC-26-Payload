@@ -9,6 +9,7 @@
 #include "cubesat_msgs/msg/image_request.hpp"
 #include "cubesat_msgs/msg/radio_packet.hpp"
 #include "cubesat_msgs/msg/radio_state.hpp"
+#include "cubesat_msgs/msg/system_health.hpp"
 #include "cubesat_msgs/msg/telemetry_type.hpp"
 
 #include "cubesat_msgs/srv/request_state_change.hpp"
@@ -71,6 +72,7 @@ class CaptainNode : public rclcpp::Node {
 
     void onPrimaryHeartbeatTimer();
     void onSecondaryHeartbeatTimer();
+    void onHealthTimer();
 
     void onCallsignTimer(); // TODO transmit callsign every once and a while
 
@@ -92,6 +94,19 @@ class CaptainNode : public rclcpp::Node {
     rclcpp::TimerBase::SharedPtr primary_heartbeat_timer;
     rclcpp::TimerBase::SharedPtr secondary_heartbeat_timer;
     rclcpp::TimerBase::SharedPtr flight_timer;
+    rclcpp::TimerBase::SharedPtr health_timer;
+
+    // node silence watchdog state
+    double node_silence_timeout_s{5.0};
+    rclcpp::Time last_pi_io_seen;
+    rclcpp::Time last_stm_seen;
+    rclcpp::Time last_radio_seen;
+    bool pi_io_was_ok{false};
+    bool stm_was_ok{false};
+    bool radio_was_ok{false};
+    bool stm_silence_abort_sent{false};
+
+    void noteNodeSilent(const char *name);
 
     cubesat_msgs::msg::TelemetryType primary_heartbeat_type;
 
@@ -108,6 +123,7 @@ class CaptainNode : public rclcpp::Node {
     rclcpp::Publisher<cubesat_msgs::msg::ImageRequest>::SharedPtr image_req_pub;
 
     rclcpp::Publisher<cubesat_msgs::msg::FlightState>::SharedPtr state_pub;
+    rclcpp::Publisher<cubesat_msgs::msg::SystemHealth>::SharedPtr system_health_pub;
 
     // services that we are the server for
     rclcpp::Service<cubesat_msgs::srv::RequestStateChange>::SharedPtr request_state_change_service;

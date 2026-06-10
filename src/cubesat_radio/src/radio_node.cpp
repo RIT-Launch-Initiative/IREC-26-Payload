@@ -1,6 +1,7 @@
 #include "cubesat_radio/radio_node.hpp"
 
 #include "rclcpp/serialization.hpp"
+#include <algorithm>
 #include <chrono>
 #include <fstream>
 #include <utility>
@@ -176,6 +177,20 @@ RadioNode::RadioNode(const rclcpp::NodeOptions &options) : rclcpp::Node("radio_n
     // }
 
     statePub = create_publisher<cubesat_msgs::msg::RadioState>("radio/state", 10);
+
+    // 1 Hz liveness heartbeat: captain's health monitor watches this topic to
+    // detect a dead/hung radio node. Created before any hardware-failure early
+    // return so the heartbeat reflects process liveness, not radio health.
+    state_heartbeat_timer = create_wall_timer(std::chrono::seconds(1), [this] {
+        cubesat_msgs::msg::RadioState msg;
+        {
+            std::lock_guard lk{rsm.queue_and_profile_mutex};
+            size_t depth = rsm.outbound_queue.size();
+            msg.queue_depth = (uint8_t)std::min<size_t>(depth, 255);
+        }
+        msg.state_id = cubesat_msgs::msg::RadioState::STATE_IDLE;
+        statePub->publish(msg);
+    });
 
     rxPacketPub = create_publisher<cubesat_msgs::msg::RadioPacket>("radio/rx_packet", 10);
 

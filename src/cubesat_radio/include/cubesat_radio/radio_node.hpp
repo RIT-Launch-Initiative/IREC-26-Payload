@@ -60,6 +60,7 @@ class RadioNode : public rclcpp::Node {
     std::unique_ptr<Sx1262Radio> radio;
 
     rclcpp::TimerBase::SharedPtr watchdog_timer;
+    rclcpp::TimerBase::SharedPtr state_heartbeat_timer;
 
     struct RadioStateMachine {
         // RadioStateMachine(RadioNode &node);
