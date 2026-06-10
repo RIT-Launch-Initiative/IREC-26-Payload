@@ -79,6 +79,7 @@ class CaptainNode : public rclcpp::Node {
     Expert *experts[(int)State::NumStates] = {nullptr};
 
     std::string flight_dir;
+    std::string restart_command;
     int runcam_pin = 1;
     std::string gpio_chip_name;
     bool was_battery_dangerous{false};

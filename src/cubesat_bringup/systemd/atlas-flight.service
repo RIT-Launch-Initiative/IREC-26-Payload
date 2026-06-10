@@ -1,0 +1,30 @@
+# ATLAS flight stack service.
+#
+# Install (paths assume the deploy.sh workspace layout):
+#   sudo cp /home/aaron/atlas_ws/install/cubesat_bringup/share/cubesat_bringup/systemd/atlas-flight.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now atlas-flight.service
+#
+# captain_node restarts the stack with "sudo systemctl restart atlas-flight.service"
+# (the restart_command parameter); allow that without a password:
+#   echo 'aaron ALL=(root) NOPASSWD: /usr/bin/systemctl restart atlas-flight.service' | sudo tee /etc/sudoers.d/atlas-restart
+
+[Unit]
+Description=ATLAS IREC-26 payload flight stack
+After=network.target time-sync.target
+
+[Service]
+Type=simple
+User=aaron
+Group=aaron
+Environment=ATLAS_WORKSPACE=/home/aaron/atlas_ws
+Environment=FLIGHT_BASE=/home/aaron/flights
+ExecStart=/bin/bash /home/aaron/atlas_ws/install/cubesat_bringup/share/cubesat_bringup/scripts/flight_boot.sh
+Restart=always
+RestartSec=3
+# give ros2 launch time to bring nodes down cleanly on stop/restart
+TimeoutStopSec=20
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target

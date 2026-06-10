@@ -62,6 +62,11 @@ void CaptainNode::handle_packet(const cubesat_msgs::msg::RadioPacket::SharedPtr 
     case Command_BackToPad:
         change_internal_state(State::Pad);
         break;
+    case Command_NewFlightDanger:
+        RCLCPP_WARN(get_logger(), "NewFlightDanger received: flagging for a fresh flight dir and restarting");
+        flag_for_new_flight_dir();
+        restart_system();
+        break;
     case Command_TelemetryRequest: {
         cubesat_msgs::msg::TelemetryType telem_type;
         telem_type.telem_id = cmd_and_data.telem_request.telem_type;

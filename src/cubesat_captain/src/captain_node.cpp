@@ -7,10 +7,15 @@
 #include "cubesat_captain/packet_writer.hpp"
 #include "cubesat_captain/pad_expert.hpp"
 
+#include <cerrno>
 #include <chrono>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <string>
+
+#include <sys/wait.h>
+#include <unistd.h>
 
 namespace cubesat_captain {
 
@@ -34,6 +39,7 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     flight_dir = declare_parameter<std::string>("flight_dir", "~/unconfigured_flight_dir");
     gpio_chip_name = declare_parameter<std::string>("gpio_chip", "gpiochip0");
     runcam_pin = declare_parameter<int64_t>("runcam_pin", 1);
+    restart_command = declare_parameter<std::string>("restart_command", "sudo systemctl restart atlas-flight.service");
 
     load_startup_parameters();
     primary_heartbeat_type.telem_id = cubesat_msgs::msg::TelemetryType::FLIGHT_HEARTBEAT;
@@ -207,7 +213,28 @@ void CaptainNode::change_internal_state(State state) {
 void CaptainNode::flag_for_new_flight_dir() { std::ofstream(flight_dir + "/new_dir_please.flag").close(); }
 
 void CaptainNode::restart_system() {
-    RCLCPP_WARN(get_logger(), "Restarting self (except not actually bc not implemented)");
+    RCLCPP_WARN(get_logger(), "Restarting flight stack with: %s", restart_command.c_str());
+
+    // double-fork so the restart command is reparented to init and survives this
+    // process being killed by the restart itself; the parent never blocks
+    pid_t pid = fork();
+    if (pid < 0) {
+        RCLCPP_ERROR(get_logger(), "fork failed, cannot restart: %s", strerror(errno));
+        return;
+    }
+    if (pid == 0) {
+        // first child: detach and spawn the real command
+        setsid();
+        pid_t pid2 = fork();
+        if (pid2 == 0) {
+            execl("/bin/sh", "sh", "-c", restart_command.c_str(), (char *)nullptr);
+            _exit(127); // exec failed
+        }
+        _exit(pid2 < 0 ? 1 : 0);
+    }
+    // reap the first child so it doesn't zombie
+    int wstatus = 0;
+    waitpid(pid, &wstatus, 0);
 }
 
 void CaptainNode::handle_imu(const cubesat_msgs::msg::AccelSample::SharedPtr sample) {
