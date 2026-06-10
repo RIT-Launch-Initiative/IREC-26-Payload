@@ -20,11 +20,9 @@ template <typename ValueT, std::size_t Length> class CCircularBuffer {
 
     constexpr value_type &OldestSample() { return underlying[oldest_index]; }
     constexpr value_type &NewestSample() {
-        std::size_t newset_index = oldest_index - 1;
-        if (newset_index < 0) {
-            newset_index += size_;
-        }
-        return underlying[newset_index];
+        // oldest_index is unsigned so subtracting 1 at 0 would wrap; add size_ first
+        std::size_t newest_index = (oldest_index + size_ - 1) % size_;
+        return underlying[newest_index];
     }
 
     // index of 0 is the oldest sample.
@@ -98,6 +96,12 @@ class PadExpert : public Expert {
     ~PadExpert() {}
     void handle_base_accel(const cubesat_msgs::msg::AccelSample &sample) override;
     void enter_state() override;
+
+    bool has_boosted() const { return has_boosted_; }
+    void clear_boost() {
+        has_boosted_ = false;
+        avger.Fill(0.0);
+    }
 
   private:
     bool has_boosted_ = false;

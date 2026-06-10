@@ -110,13 +110,13 @@ def generate_launch_description():
         )
     
     bag = ExecuteProcess(
-            cmd=['ros2', 'bag', 'record', '-s', 'mcap', '--compression-mode file', '-d', '60', '--compression-format', 'zstd',  '-a', '-x', "'/camera/image_raw|/camera/image_raw/compressed'"],
-            shell=True,
+            cmd=['ros2', 'bag', 'record', '-s', 'mcap', '--compression-mode', 'file', '-d', '60', '--compression-format', 'zstd',  '-a', '-x', '/camera/image_raw|/camera/image_raw/compressed'],
+            shell=False,
             output='screen',
             log_cmd=True,
             cwd = flight_dir,
-            respawn=True, 
-            respawn_delay=2.0, 
+            respawn=True,
+            respawn_delay=2.0,
         )
 
     return LaunchDescription(

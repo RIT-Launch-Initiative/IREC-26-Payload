@@ -66,11 +66,6 @@ install(
 )
 
 install(
-  DIRECTORY config
-  DESTINATION share/${PROJECT_NAME}
-)
-
-install(
   DIRECTORY semtech/
   DESTINATION share/${PROJECT_NAME}/semtech
 )

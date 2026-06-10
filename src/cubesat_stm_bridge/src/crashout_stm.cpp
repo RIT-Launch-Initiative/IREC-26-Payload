@@ -59,6 +59,7 @@ enum class SpiCommand : uint8_t {
 };
 
 bool CrashoutSTM::open(std::string spidev, uint32_t speed_hz) {
+    this->speed_hz = speed_hz;
     spi_fd = ::open(spidev.c_str(), O_RDWR | O_CLOEXEC);
     if (spi_fd < 0) {
         return false;
@@ -189,7 +190,8 @@ std::optional<FlipServoMotion> CrashoutSTM::getServoMotion(FlipServo servoid) {
         return std::nullopt;
     }
     dump_transfer("servo back: ", *xfer);
-    return decode_servo_motion(std::span<uint8_t>{*xfer}.subspan(2, 7));
+    // motion payload is 5 bytes after the 2 byte status word; subspan(2, 7) read past the 8 byte transfer
+    return decode_servo_motion(std::span<uint8_t>{*xfer}.subspan(2, 5));
 }
 
 void CrashoutSTM::reset() {

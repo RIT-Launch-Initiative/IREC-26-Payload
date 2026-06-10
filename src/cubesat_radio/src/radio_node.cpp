@@ -301,12 +301,13 @@ void RadioNode::RadioStateMachine::signalStopping() {
 void RadioNode::RadioStateMachine::linkTestChanceExpired() {
     radio_flag_signal.fetch_or(LINK_TEST_CHANCE_EXPIRED_BIT);
     radio_flag_signal.notify_one();
-
-    interrupt_thread_running.store(false);
-    interrupt_thread_running.notify_one();
 }
 
 bool RadioNode::RadioStateMachine::submitPacketToSend(std::vector<uint8_t> packet) {
+    if (packet.empty() || packet.size() > 255) {
+        RCLCPP_WARN(get_logger(), "Dropping packet of bad length %ld", packet.size());
+        return false;
+    }
     RCLCPP_INFO(get_logger(), "Submitting packet of length %ld to queue", packet.size());
     {
         std::lock_guard lk{queue_and_profile_mutex};
@@ -338,8 +339,8 @@ void RadioNode::radioLoop() {
             rsm.radio_flag_signal.wait(0); // handled everything last iter, wait for anything
         }
 
-        uint32_t status = rsm.radio_flag_signal.load();
-        rsm.radio_flag_signal.store(0);
+        // exchange so a flag set between a load and a separate store can't be lost
+        uint32_t status = rsm.radio_flag_signal.exchange(0);
 
         bool packet_ready = (status & rsm.NEW_PACKET_BIT) != 0;
         bool interrupt_happened = (status & rsm.INTERRUPT_BIT) != 0;
@@ -413,8 +414,8 @@ void RadioNode::radioLoop() {
                 radio->dumpStatus();
 
                 if (!radio->setReceiveMode()) {
+                    // don't return: that would kill the radio thread on a transient failure
                     RCLCPP_WARN(get_logger(), "Radio RX mode enable failed after link change");
-                    return;
                 }
                 radio->dumpStatus();
             }

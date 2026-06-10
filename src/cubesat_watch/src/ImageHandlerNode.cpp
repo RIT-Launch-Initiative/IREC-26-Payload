@@ -28,7 +28,7 @@ ImageHandlerNode::ImageHandlerNode() : Node("image_compressor") {
     saveDirectory = flight_dir + "/images/";
     callsign = this->declare_parameter<std::string>("callsign", "KD2YIE");
 
-    auto maybe_next_image = nextImageIdForDir(flight_dir);
+    auto maybe_next_image = nextImageIdForDir(saveDirectory);
     if (maybe_next_image) {
         uint32_t next_image = *maybe_next_image;
         if (next_image > 0) {

@@ -1,6 +1,7 @@
 #include "cubesat_stm_bridge/stm_bridge_node.hpp"
 
 #include <chrono>
+#include <cmath>
 #include <string>
 
 namespace cubesat_stm_bridge {
@@ -84,19 +85,20 @@ void StmBridgeNode::onStatusTimer() {
     auto maybe_status = crashout.setBaseImuAndReturnStatus(normed_v16(last_pi_imu));
     if (!maybe_status.has_value()) {
         RCLCPP_WARN(get_logger(), "Failed to get status from STM");
-        return;
+        // fall through with stale last_status: the mode ticks below must still run
+        // so an in-flight action can hit its timeout and abort instead of hanging forever
+    } else {
+        StmBridge::Status arm_status = *maybe_status;
+        cubesat_msgs::msg::ArmStatus pub_status;
+        FillArmStatusFlags(arm_status.status_word, pub_status);
+        pub_status.stamp = now();
+        pub_status.shoulder_yaw_deg = arm_status.pose.shoulder_yaw;
+        pub_status.shoulder_pitch_deg = arm_status.pose.shoulder_pitch;
+        pub_status.elbow_angle_deg = arm_status.pose.elbow_pitch;
+        pub_status.wrist_angle_deg = arm_status.pose.wrist_pitch;
+        last_status = pub_status;
+        arm_pub->publish(pub_status);
     }
-
-    StmBridge::Status arm_status = *maybe_status;
-    cubesat_msgs::msg::ArmStatus pub_status;
-    FillArmStatusFlags(arm_status.status_word, pub_status);
-    pub_status.stamp = now();
-    pub_status.shoulder_yaw_deg = arm_status.pose.shoulder_yaw;
-    pub_status.shoulder_pitch_deg = arm_status.pose.shoulder_pitch;
-    pub_status.elbow_angle_deg = arm_status.pose.elbow_pitch;
-    pub_status.wrist_angle_deg = arm_status.pose.wrist_pitch;
-    last_status = pub_status;
-    arm_pub->publish(pub_status);
 
     switch (active_mode) {
     case BridgeMode::Idle:
@@ -249,6 +251,9 @@ void StmBridgeNode::holdShut(const std::shared_ptr<cubesat_msgs::srv::HoldShut::
             crashout.stopMovement();
             active_mode = BridgeMode::Idle;
             response->success = true;
+        } else {
+            RCLCPP_WARN(get_logger(), "Not releasing hold because busy. Was: %d", (int)active_mode);
+            response->success = false;
         }
     }
 }
@@ -412,6 +417,10 @@ void StmBridgeNode::handle_imu(const cubesat_msgs::msg::AccelSample::SharedPtr s
 StmBridge::Vec3_16 StmBridgeNode::normed_v16(const cubesat_msgs::msg::AccelSample &sample) {
     float normsqred = sample.ax * sample.ax + sample.ay * sample.ay + sample.az * sample.az;
     float norm = std::sqrt(normsqred);
+    if (norm <= 0.0f || !std::isfinite(norm)) {
+        // no IMU sample yet (all zeros) - dividing would produce NaN and UB on the int16 cast
+        return {0, 0, 0};
+    }
     float nx = sample.ax / norm;
     float ny = sample.ay / norm;
     float nz = sample.az / norm;

@@ -3,6 +3,7 @@
 #include <libcamera/formats.h>
 #include <libcamera/libcamera.h>
 
+#include <algorithm>
 #include <iomanip>
 #include <iostream>
 #include <memory>
@@ -30,7 +31,26 @@ cv::Mat downscaledImage{};
 
 cv::Mat cropAndDownscaleImage(const cv::Mat &full_image) {
     auto logger = rclcpp::get_logger("image_taker");
-    cv::Rect roi(cropLeft_, cropTop_, cropRight_ - cropLeft_, cropBottom_ - cropTop_);
+
+    // crop values come over the radio; clamp them so a bad command can't make
+    // cv::Mat::operator() throw and take down the node
+    uint16_t left = std::min<uint16_t>(cropLeft_, full_image.cols);
+    uint16_t right = std::min<uint16_t>(cropRight_, full_image.cols);
+    uint16_t top = std::min<uint16_t>(cropTop_, full_image.rows);
+    uint16_t bottom = std::min<uint16_t>(cropBottom_, full_image.rows);
+    if (right <= left || bottom <= top || downscaleWidth_ == 0) {
+        RCLCPP_ERROR(logger, "Bad crop request x(%d,%d) y(%d,%d) w%d, using full frame", left, right, top, bottom,
+                     downscaleWidth_);
+        left = 0;
+        right = full_image.cols;
+        top = 0;
+        bottom = full_image.rows;
+        if (downscaleWidth_ == 0) {
+            downscaleWidth_ = 640;
+        }
+    }
+
+    cv::Rect roi(left, top, right - left, bottom - top);
     cv::Mat croppedImage = full_image(roi);
 
     uint16_t croppedHeight = croppedImage.rows;
@@ -77,7 +97,7 @@ static void requestComplete(Request *request) {
         std::cout << "Plane length" << plane0.length << " fd " << plane0.fd.get() << std::endl;
 
         void *mmapped_memory = mmap(nullptr, plane0.length, PROT_READ, MAP_SHARED, plane0.fd.get(), plane0.offset);
-        if (mmapped_memory == NULL) {
+        if (mmapped_memory == MAP_FAILED) {
             std::cerr << "Failed to map memory" << std::endl;
             break;
         }
@@ -206,10 +226,21 @@ cv::Mat take_image_and_crop(std::string path, uint16_t cropLeft, uint16_t cropRi
     for (std::unique_ptr<Request> &request : requests)
         camera->queueRequest(request.get());
 
-    while (!ignore) {
+    // bound the wait: if the camera never completes the request (power glitch,
+    // sensor wedged) this used to spin forever and wedge the node
+    const int max_wait_iterations = 100; // 10 seconds
+    int waited = 0;
+    while (!ignore && waited < max_wait_iterations) {
         std::this_thread::sleep_for(100ms);
+        waited++;
     }
-    std::cout << "Handler made image. Cleaning up" << std::endl;
+    if (!ignore) {
+        std::cerr << "Timed out waiting for camera request to complete" << std::endl;
+        downscaledImage = cv::Mat{};
+        ignore = true; // make a late requestComplete bail instead of touching globals mid-cleanup
+    } else {
+        std::cout << "Handler made image. Cleaning up" << std::endl;
+    }
 
     camera->stop();
     std::this_thread::sleep_for(100ms);
