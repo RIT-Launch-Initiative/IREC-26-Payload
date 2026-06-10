@@ -1,0 +1,77 @@
+name: build
+
+on:
+  push:
+    branches: [main, fable]
+  pull_request:
+    branches: [main, fable]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build the repo's own dev image (Dockerfile at the root) with GitHub
+      # Actions layer caching so the apt layer (~4 GB of ROS desktop) is only
+      # paid when the Dockerfile changes.
+      - name: Build dev image (cached)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          load: true
+          tags: dev:humble
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Reuse colcon's build dir between runs; keyed on the build-relevant
+      # inputs so a CMakeLists/package.xml change invalidates it.
+      - name: Restore colcon build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            build
+            install
+          key: colcon-${{ runner.os }}-${{ hashFiles('src/**/CMakeLists.txt', 'src/**/package.xml', 'Dockerfile') }}
+          restore-keys: |
+            colcon-${{ runner.os }}-
+
+      # cubesat_watch is skipped: it needs the Pi image's libcamera (>= 0.1 API),
+      # which neither the dev image nor Ubuntu jammy's libcamera-dev provides.
+      - name: colcon build
+        run: |
+          docker run --rm --entrypoint bash \
+            --user "$(id -u):$(id -g)" \
+            -v "$PWD:/workspace:rw" -w /workspace \
+            dev:humble -lc '
+              set -e
+              source /opt/ros/humble/setup.bash
+              colcon build \
+                --packages-skip cubesat_watch \
+                --event-handlers console_cohesion+
+            '
+
+      - name: colcon test
+        run: |
+          docker run --rm --entrypoint bash \
+            --user "$(id -u):$(id -g)" \
+            -v "$PWD:/workspace:rw" -w /workspace \
+            dev:humble -lc '
+              set -e
+              source /opt/ros/humble/setup.bash
+              source install/setup.bash
+              colcon test \
+                --packages-skip cubesat_watch \
+                --event-handlers console_cohesion+
+              # only summarize if any package actually produced test results
+              if find build -name "*.xunit.xml" -o -name "*.gtest.xml" | grep -q .; then
+                colcon test-result --verbose
+              else
+                echo "No test targets produced results; nothing to summarize."
+              fi
+            '
