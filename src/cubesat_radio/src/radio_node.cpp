@@ -2,7 +2,11 @@
 
 #include "rclcpp/serialization.hpp"
 #include <chrono>
+#include <cstdio>
 #include <fstream>
+#include <iterator>
+#include <optional>
+#include <string>
 #include <utility>
 
 #include "cubesat_comms/lora.h"
@@ -171,9 +175,16 @@ std::optional<G2PLinkHeader> header_of_packet(const std::vector<uint8_t> &pack) 
 RadioNode::RadioNode(const rclcpp::NodeOptions &options) : rclcpp::Node("radio_node", options) {
     const auto hardware = loadHardwareConfig();
     RadioProfile profile = loadParameterProfile();
-    // if (!loadProfileFromFile(flight_dir)) {
-    // serializeProfile(flight_dir + "/radio_profile");
-    // }
+
+    flight_dir = declare_parameter<std::string>("flight_dir", "");
+    if (!flight_dir.empty()) {
+        profile_path = flight_dir + "/radio_profile.json";
+        if (loadProfileFromFile(profile_path, profile)) {
+            RCLCPP_INFO(get_logger(), "Loaded persisted radio profile from %s", profile_path.c_str());
+        }
+    } else {
+        RCLCPP_WARN(get_logger(), "No flight_dir set: radio profile changes will not survive restart");
+    }
 
     statePub = create_publisher<cubesat_msgs::msg::RadioState>("radio/state", 10);
 
@@ -407,6 +418,7 @@ void RadioNode::radioLoop() {
                 std::lock_guard lk{rsm.queue_and_profile_mutex};
                 if (radio->configure(rsm.incomingProfile)) {
                     rsm.stableProfile = rsm.incomingProfile;
+                    persistProfile(rsm.stableProfile);
                     RCLCPP_INFO(get_logger(), "Immediate reconfigure of radio succeeded");
                 } else {
                     RCLCPP_INFO(get_logger(), "Immediate reconfigure of radio failed");
@@ -537,6 +549,7 @@ void RadioNode::RadioStateMachine::processEvent(RadioNode &node, EventType event
         }
         node.radio->dumpStatus();
         stableProfile = profileUnderTest;
+        node.persistProfile(stableProfile);
         isLinkTesting = false;
         node.wait_for_link_test_timer->cancel();
         break;
@@ -557,46 +570,100 @@ void RadioNode::handleSendRadioPacket(const std::shared_ptr<cubesat_msgs::srv::S
     response->success = request != nullptr && rsm.submitPacketToSend(request->data);
 }
 
-// bool RadioNode::loadProfileFromFile(std::string path, RadioProfile &into) {
-//     try {
-//         // read file
-//         std::ifstream file(path, std::ios::in | std::ios::binary | std::ios::ate);
-//         file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+// hand-rolled json (a Pi Zero 2 W doesn't need a json library for 5 integers)
+namespace {
 
-//         std::streamsize size = file.tellg();
-//         file.seekg(0, std::ios::beg);
+std::optional<long long> find_json_int(const std::string &text, const std::string &key) {
+    size_t pos = text.find("\"" + key + "\"");
+    if (pos == std::string::npos) {
+        return std::nullopt;
+    }
+    pos = text.find(':', pos);
+    if (pos == std::string::npos) {
+        return std::nullopt;
+    }
+    try {
+        return std::stoll(text.substr(pos + 1));
+    } catch (const std::exception &) {
+        return std::nullopt;
+    }
+}
 
-//         std::vector<uint8_t> buffer(size);
-//         file.read(reinterpret_cast<char *>(buffer.data()), size);
-//         file.close();
+bool profile_is_sane(const RadioProfile &p) {
+    // sx1262 tuning range and LoRa parameter limits
+    return p.frequency_hz >= 137000000 && p.frequency_hz <= 1020000000 &&  //
+           p.bandwidth_hz >= 7800 && p.bandwidth_hz <= 500000 &&           //
+           p.spreading_factor >= 5 && p.spreading_factor <= 12 &&          //
+           p.coding_rate >= 5 && p.coding_rate <= 8 &&                     //
+           p.tx_power_dbm >= -17 && p.tx_power_dbm <= 22;
+}
 
-//         rclcpp::SerializedMessage serialized_msg;
-//         auto &rcl_msg = serialized_msg.get_rcl_serialized_message();
+} // namespace
 
-//         // deserialize
-//         rmw_serialized_message_resize(&rcl_msg, size);
-//         std::memcpy(rcl_msg.buffer, buffer.data(), size);
-//         rcl_msg.buffer_length = size; // Explicitly set length to avoid invalid state errors
+bool RadioNode::loadProfileFromFile(const std::string &path, RadioProfile &into) {
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        return false;
+    }
+    std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
-//         rclcpp::Serialization<cubesat_msgs::msg::LoraParameters> serializer;
-//         serializer.deserialize_message(&serialized_msg, &profile);
-//         return true;
-//     } catch (std::exception &e) {
-//         RCLCPP_WARN(get_logger(), "Failed to load lora profile from file: %s", e.what());
-//         return false;
-//     }
-// }
+    auto freq = find_json_int(text, "frequency_hz");
+    auto bw = find_json_int(text, "bandwidth_hz");
+    auto sf = find_json_int(text, "spreading_factor");
+    auto cr = find_json_int(text, "coding_rate");
+    auto power = find_json_int(text, "tx_power_dbm");
+    if (!freq || !bw || !sf || !cr || !power) {
+        RCLCPP_WARN(get_logger(), "Persisted radio profile %s is missing fields, ignoring it", path.c_str());
+        return false;
+    }
 
-// void RadioNode::serializeProfile(std::string path, RadioProfile profile) {
+    RadioProfile loaded;
+    loaded.frequency_hz = (uint32_t)*freq;
+    loaded.bandwidth_hz = (uint32_t)*bw;
+    loaded.spreading_factor = (uint8_t)*sf;
+    loaded.coding_rate = (uint8_t)*cr;
+    loaded.tx_power_dbm = (int8_t)*power;
 
-//     rclcpp::Serialization<cubesat_msgs::msg::LoraParameters> serializer;
-//     rclcpp::SerializedMessage serialized_msg;
-//     serializer.serialize_message(&profile, &serialized_msg);
+    if (!profile_is_sane(loaded)) {
+        RCLCPP_WARN(get_logger(), "Persisted radio profile %s has out-of-range values, ignoring it", path.c_str());
+        return false;
+    }
 
-//     std::ofstream file(path, std::ios::out | std::ios::binary);
-//     file.write(reinterpret_cast<const char *>(serialized_msg.get_rcl_serialized_message().buffer),
-//                serialized_msg.get_rcl_serialized_message().buffer_length);
-//     file.close();
-// }
+    into = loaded;
+    return true;
+}
+
+void RadioNode::persistProfile(const RadioProfile &profile) {
+    if (profile_path.empty()) {
+        return;
+    }
+
+    // write to a temp file and rename so a power cut mid-write can't leave a
+    // truncated profile that poisons the next boot
+    const std::string tmp_path = profile_path + ".tmp";
+    {
+        std::ofstream file(tmp_path, std::ios::out | std::ios::trunc);
+        if (!file.is_open()) {
+            RCLCPP_WARN(get_logger(), "Could not open %s to persist radio profile", tmp_path.c_str());
+            return;
+        }
+        file << "{\n"
+             << "  \"frequency_hz\": " << profile.frequency_hz << ",\n"
+             << "  \"bandwidth_hz\": " << profile.bandwidth_hz << ",\n"
+             << "  \"spreading_factor\": " << (int)profile.spreading_factor << ",\n"
+             << "  \"coding_rate\": " << (int)profile.coding_rate << ",\n"
+             << "  \"tx_power_dbm\": " << (int)profile.tx_power_dbm << "\n"
+             << "}\n";
+        if (!file.good()) {
+            RCLCPP_WARN(get_logger(), "Failed writing %s", tmp_path.c_str());
+            return;
+        }
+    }
+    if (std::rename(tmp_path.c_str(), profile_path.c_str()) != 0) {
+        RCLCPP_WARN(get_logger(), "Failed to move %s into place", tmp_path.c_str());
+        return;
+    }
+    RCLCPP_INFO(get_logger(), "Persisted radio profile to %s", profile_path.c_str());
+}
 
 } // namespace cubesat_radio

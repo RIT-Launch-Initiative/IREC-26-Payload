@@ -28,12 +28,14 @@ class RadioNode : public rclcpp::Node {
   private:
     RadioProfile loadParameterProfile();
     /**
-     * Modifies member
-     * If no parameter file was found, dont overwrite anything
-     * return true if read
+     * Load a previously persisted profile from <flight_dir>/radio_profile.json.
+     * If the file is missing or invalid, `into` is left untouched.
+     * Returns true if a valid profile was read.
      */
-    // bool loadProfileFromFile(std::string path);
-    void serializeProfile(std::string path);
+    bool loadProfileFromFile(const std::string &path, RadioProfile &into);
+
+    /** Atomically write the profile to <flight_dir>/radio_profile.json. */
+    void persistProfile(const RadioProfile &profile);
 
     RadioHardwareConfig loadHardwareConfig();
 
@@ -48,6 +50,7 @@ class RadioNode : public rclcpp::Node {
                                std::shared_ptr<cubesat_msgs::srv::SendRadioPacket::Response> response);
 
     std::string flight_dir;
+    std::string profile_path; // empty if persistence is disabled (no flight_dir)
 
     rclcpp::Publisher<cubesat_msgs::msg::RadioState>::SharedPtr statePub;
     rclcpp::Publisher<cubesat_msgs::msg::RadioPacket>::SharedPtr rxPacketPub;
