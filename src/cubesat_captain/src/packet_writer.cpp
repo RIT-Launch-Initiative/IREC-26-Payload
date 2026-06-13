@@ -60,12 +60,13 @@ void packet_for_flight_heartbeat(const StatusAccumulator &status, FlightHeartbea
         telem.s_since_boost = (uint16_t)elapsed;
     }
 
-    if (status.last_power_sample.bus_voltage_v < -32768) {
+    float battery_mv = status.last_power_sample.bus_voltage_v * 1000.0f;
+    if (battery_mv < -32768.0f) {
         telem.battery_mV = -32768;
-    } else if (status.last_power_sample.bus_voltage_v > 32767) {
+    } else if (battery_mv > 32767.0f) {
         telem.battery_mV = 32767;
     } else {
-        telem.battery_mV = (uint16_t)(status.last_power_sample.bus_voltage_v * 1000);
+        telem.battery_mV = (int16_t)battery_mv;
     }
     telem.radio_temp = 55; // TODO real
 }
@@ -78,12 +79,13 @@ void packet_for_landed_heartbeat(const StatusAccumulator &status, LandedHeartbea
     telem.arm_position.elbow_pitch = (int8_t)status.last_arm_status.elbow_angle_deg;
     telem.arm_position.wrist_pitch = (int8_t)status.last_arm_status.wrist_angle_deg;
 
-    if (status.last_power_sample.bus_voltage_v < -32768) {
+    float battery_mv = status.last_power_sample.bus_voltage_v * 1000.0f;
+    if (battery_mv < -32768.0f) {
         telem.battery_mV = -32768;
-    } else if (status.last_power_sample.bus_voltage_v > 32767) {
+    } else if (battery_mv > 32767.0f) {
         telem.battery_mV = 32767;
     } else {
-        telem.battery_mV = (uint16_t)(status.last_power_sample.bus_voltage_v * 1000);
+        telem.battery_mV = (int16_t)battery_mv;
     }
     telem.motor_temp = 20;
     telem.radio_temp = 20;

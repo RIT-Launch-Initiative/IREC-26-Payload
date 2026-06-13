@@ -82,7 +82,7 @@ void ArmExpert::decide_next() {
     std::span<ArmPose> path = path_for_state(for_state);
 
     // just incase we didn't check last time
-    if (path_index >= path.size() - 1) {
+    if (path_index >= path.size()) {
         RCLCPP_INFO(logger, "Finished arm path. Going to next state");
         finish_good();
         return;
@@ -102,13 +102,19 @@ void ArmExpert::decide_next() {
         // take picture
         RCLCPP_INFO(logger, "Arm step  %ld/%ld success. Taking pic and continuing", path_index + 1, path.size());
         levers.take_picture(0, 1280, 0, 800, 640, 2);
-        std::thread([this]() {
+        const State state_when_started = levers.status.active_state();
+        std::thread([this, state_when_started]() {
             std::this_thread::sleep_for(camera_wait);
+            // bail if the captain left this state while we slept (manual override, emergency, ...)
+            if (levers.status.active_state() != state_when_started) {
+                RCLCPP_WARN(logger, "State changed while waiting on camera, abandoning arm path");
+                return;
+            }
             RCLCPP_INFO(logger, "Assuming camera took picture, continuing");
             path_index++;
             attempts_for_this_side = 0;
             std::span<ArmPose> path = path_for_state(for_state);
-            if (path_index > path.size()) {
+            if (path_index >= path.size()) {
                 finish_good();
                 return;
             }

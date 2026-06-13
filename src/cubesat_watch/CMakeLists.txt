@@ -22,6 +22,19 @@ find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
 
+# libcamera: prefer pkg-config (module "libcamera", >= 0.1 API which this code
+# targets); fall back to the ROS prefix layout used on the Pi image. Note Ubuntu
+# jammy's libcamera-dev ("camera" module) is too old for this code.
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBCAMERA QUIET libcamera)
+if(LIBCAMERA_FOUND)
+  set(LIBCAMERA_INCLUDE_DIR ${LIBCAMERA_INCLUDE_DIRS})
+  set(LIBCAMERA_LINK_LIBS ${LIBCAMERA_LIBRARIES})
+else()
+  set(LIBCAMERA_INCLUDE_DIR ${rclcpp_DIR}/../../../include/libcamera/)
+  set(LIBCAMERA_LINK_LIBS camera camera-base)
+endif()
+
 # SSDV library (C sources)
 add_library(ssdv STATIC
   third_party/ssdv/ssdv.c
@@ -57,7 +70,7 @@ ament_target_dependencies(cubesat_watch_node
 target_link_libraries(cubesat_watch_node
   ${OpenCV_LIBRARIES}
   ssdv
-  camera camera-base
+  ${LIBCAMERA_LINK_LIBS}
 )
 
 target_include_directories(cubesat_watch_node PUBLIC
@@ -65,7 +78,7 @@ target_include_directories(cubesat_watch_node PUBLIC
   $<INSTALL_INTERFACE:include>
   ${OpenCV_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party
-  ${rclcpp_DIR}/../../../include/libcamera/
+  ${LIBCAMERA_INCLUDE_DIR}
 )
 install(TARGETS cubesat_watch_node
   DESTINATION lib/${PROJECT_NAME}

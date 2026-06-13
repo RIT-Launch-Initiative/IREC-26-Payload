@@ -83,7 +83,7 @@ void CaptainNode::handle_packet(const cubesat_msgs::msg::RadioPacket::SharedPtr 
     case Command_SendArmTargetForPhotoAndComeBack: {
         if (expert != nullptr) {
             auto goal = packetToGoal(cmd_and_data.send_arm_to_target_for_photo_and_come_back);
-            expert->send_arm_to_target_and_come_back(goal);
+            expert->send_arm_to_target_and_come_back_with_photo(goal);
         }
     } break;
     case Command_StartVideo:
@@ -131,7 +131,7 @@ int load_block_data(std::string path, uint8_t *buf) {
         file.read(reinterpret_cast<char *>(buf), size);
         file.close();
     } catch (std::exception &e) {
-        return false;
+        return -1;
     }
     return 0;
 }

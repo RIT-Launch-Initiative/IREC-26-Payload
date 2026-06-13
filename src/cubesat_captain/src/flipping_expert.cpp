@@ -33,7 +33,7 @@ cubesat_msgs::msg::AccelSample from_nums(float x, float y, float z) {
 const cubesat_msgs::msg::AccelSample deck = from_nums(0, 0, -1);
 const cubesat_msgs::msg::AccelSample hull = from_nums(0, 0, 1);
 const cubesat_msgs::msg::AccelSample starboard = from_nums(0, -1, 0);
-const cubesat_msgs::msg::AccelSample port = from_nums(0, -1, 0);
+const cubesat_msgs::msg::AccelSample port = from_nums(0, 1, 0);
 const cubesat_msgs::msg::AccelSample bow = from_nums(1, 0, 0);
 const cubesat_msgs::msg::AccelSample stern = from_nums(-1, 0, 0);
 
@@ -139,7 +139,11 @@ void FlippingExpert::flip_finish() {
 }
 
 void FlippingExpert::enter_state() {
-    // todo check if this has been done before (possible if we were sent back to flipping)
+    // reset progress in case we were sent back to flipping after a previous attempt
+    attempts = 0;
+    opened_side_1 = false;
+    opened_side_2 = false;
+    opened_side_3 = false;
     cubesat_msgs::msg::FlipServo servo{};
     servo.id = cubesat_msgs::msg::FlipServo::FLIP_SERVO_2;
     start_flip(servo);

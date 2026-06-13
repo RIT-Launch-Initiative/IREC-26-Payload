@@ -50,7 +50,7 @@ class CrashoutSTM {
     std::optional<Transfer> transceive(const Transfer &outbound);
 
     int spi_fd = -1;
-    uint32_t speed_hz;
+    uint32_t speed_hz = 1000000;
 };
 
 } // namespace StmBridge

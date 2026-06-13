@@ -178,7 +178,7 @@ int pack_uint32(uint32_t i, uint8_t *buf) {
     return sizeof(uint32_t);
 }
 enum UnpackResult unpack_uint32(const uint8_t *buf, uint32_t len, uint32_t *i) {
-    if (len < 2) {
+    if (len < 4) {
         return UnpackResult_TooShort;
     }
 
@@ -234,7 +234,7 @@ int pack_phototransform(const struct PhotoTransform *tform, uint8_t *buf){
   size+=pack_uint16(tform->top, buf + size);
   size+=pack_uint16(tform->bottom, buf + size);
   
-  uint16_t packed_q_and_width = ((tform->quality & 0b111) << 13) | (tform->output_width & 0b11111111111);
+  uint16_t packed_q_and_width = ((tform->quality & 0b111) << 13) | (tform->output_width & 0b1111111111111);
   size+=pack_uint16(packed_q_and_width, buf + size);
   return size;
 }

@@ -18,7 +18,7 @@ class BuzzerDriver {
 
     uint32_t active_code = 0;
     uint32_t index = 0;
-    int repeat_count = false;
+    uint32_t repeat_count = 0;
 };
 
 } // namespace cubesat_io_node

@@ -61,7 +61,7 @@ class StatusAccumulator {
     cubesat_msgs::msg::PowerSample last_power_sample{};
 
     cubesat_msgs::msg::AccelSample last_base_accel{};
-    uint8_t last_image_id;
+    uint8_t last_image_id = 0;
     uint32_t takeoff_time = 0;
     bool runcam_on = false;
 

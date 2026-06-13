@@ -89,7 +89,7 @@ bool wait_for_irq(Sx126xLinuxHalContext &hal, sx126x_irq_mask_t wanted, uint32_t
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 
-    return true;
+    return false;
 }
 
 } // namespace
@@ -286,7 +286,8 @@ bool Sx1262Radio::send(const std::vector<uint8_t> &data) {
         sx126x_write_buffer(&impl->hal, 0x00, data.data(), static_cast<uint8_t>(data.size())) != SX126X_STATUS_OK ||
         sx126x_clear_irq_status(&impl->hal, SX126X_IRQ_ALL) != SX126X_STATUS_OK ||
         sx126x_set_tx(&impl->hal, kTxTimeoutMs) != SX126X_STATUS_OK) {
-        set_rf_switch_tx(impl->hal);
+        // put the RF switch back into RX, not TX, so we aren't left deaf after a failed send
+        set_rf_switch_rx(impl->hal);
 
         RCLCPP_WARN(logger, "Failed to send because couldnt lora pkt params, buffer base, buffer, irq status, timeout, "
                             "or failed to switch to idle");
@@ -324,7 +325,12 @@ bool Sx1262Radio::send(const std::vector<uint8_t> &data) {
     RCLCPP_DEBUG(logger, "Radio Status post set stdby pre rx: cmd %d, mode %d", (int)post_tx_status.cmd_status,
                  (int)post_tx_status.chip_mode);
 
-    return sx126x_set_rx_with_timeout_in_rtc_step(&impl->hal, SX126X_RX_CONTINUOUS) == SX126X_STATUS_OK;
+    // flip the external RF switch back to RX before re-entering receive mode
+    if (!set_rf_switch_rx(impl->hal)) {
+        RCLCPP_WARN(logger, "Failed to set rf switch back to rx after tx");
+    }
+
+    return (sx126x_set_rx_with_timeout_in_rtc_step(&impl->hal, SX126X_RX_CONTINUOUS) == SX126X_STATUS_OK) && success;
 }
 
 std::optional<ReceivedPacket> Sx1262Radio::receive() {
