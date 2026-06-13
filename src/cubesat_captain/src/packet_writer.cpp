@@ -31,6 +31,10 @@ FlightState flight_state(const StatusAccumulator &status) {
     uint16_t status_bits = 0;
     status_bits |= status.has_gps() << StatusBit_GPSHasFix;
     status_bits |= status.last_arm_status.motor_en << StatusBit_ArmMoving;
+    status_bits |= status.runcam_on << StatusBit_RuncamOn;
+    status_bits |= status.last_arm_status.flip_servo_en << StatusBit_ServoMoving;
+    status_bits |= status.last_arm_status.cant_trust_imu_link << StatusBit_CantTrustLink2Imu;
+    status_bits |= status.last_arm_status.booted << StatusBit_StmBooted;
     return {phase, status_bits};
 }
 

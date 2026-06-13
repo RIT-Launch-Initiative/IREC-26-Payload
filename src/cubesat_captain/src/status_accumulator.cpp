@@ -3,6 +3,11 @@
 
 namespace cubesat_captain {
 
+void StatusAccumulator::set_runcam(bool isOn){
+    runcam_on = isOn;
+}
+
+
 void StatusAccumulator::update_flight_state(const cubesat_msgs::msg::FlightState &state) { current_state = state; }
 
 void StatusAccumulator::update_arm_status(const cubesat_msgs::msg::ArmStatus &status) { last_arm_status = status; }

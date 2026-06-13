@@ -43,7 +43,8 @@ class StatusAccumulator {
 
     void set_takeoff_time();
     void clear_takeoff_time();
-
+    void set_runcam(bool isOn);
+    
     State active_state() const;
 
     // if the most recent gps packet had fix
@@ -62,6 +63,7 @@ class StatusAccumulator {
     cubesat_msgs::msg::AccelSample last_base_accel{};
     uint8_t last_image_id;
     uint32_t takeoff_time = 0;
+    bool runcam_on = false;
 
   private:
 };

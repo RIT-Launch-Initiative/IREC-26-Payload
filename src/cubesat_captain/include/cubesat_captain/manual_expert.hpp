@@ -34,5 +34,9 @@ class ManualExpert : public Expert {
     void flip_result_cb(const GoalHandleFlipServoAction::WrappedResult &result);
     void flip_feedback_cb(GoalHandleFlipServoAction::SharedPtr,
                           const std::shared_ptr<const FlipServoAction::Feedback> feedback);
+
+  private:
+    bool take_photo_with_arm_movement = true;
+    bool return_to_origin_point_after_arm_movement = true;
 };
 } // namespace cubesat_captain
