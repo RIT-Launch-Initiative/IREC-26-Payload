@@ -33,7 +33,7 @@ void ManualExpert::send_arm_to_target_and_come_back_with_photo(const cubesat_msg
 
 void ManualExpert::arm_response_cb(GoalHandleExtendArm::SharedPtr) { RCLCPP_INFO(logger, "Arm Response CB"); }
 void ManualExpert::arm_result_cb(const GoalHandleExtendArm::WrappedResult &) {
-    RCLCPP_INFO(logger, "Arm Result CB");
+    RCLCPP_INFO(logger, "Manual Arm Result CB");
     // flip_finish();
     RCLCPP_INFO(logger, "Arm Post Finish");
 }
@@ -42,6 +42,16 @@ void ManualExpert::arm_feedback_cb(GoalHandleExtendArm::SharedPtr,
     RCLCPP_INFO(logger, "Arm feedback CB: %f %f %f %f", feedback->arm_status.shoulder_yaw_deg,
                 feedback->arm_status.shoulder_pitch_deg, feedback->arm_status.elbow_angle_deg,
                 feedback->arm_status.wrist_angle_deg);
+}
+
+void ManualExpert::flip_response_cb(GoalHandleFlipServoAction::SharedPtr future) {
+    RCLCPP_INFO(logger, "Manual Flip Response CB");
+}
+void ManualExpert::flip_result_cb(const GoalHandleFlipServoAction::WrappedResult &result) {
+    RCLCPP_INFO(logger, "Manual Flip Response CB");
+}
+void ManualExpert::flip_feedback_cb(GoalHandleFlipServoAction::SharedPtr,
+                                    const std::shared_ptr<const FlipServoAction::Feedback> feedback) {
 }
 
 } // namespace cubesat_captain

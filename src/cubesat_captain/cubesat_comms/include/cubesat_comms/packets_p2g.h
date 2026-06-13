@@ -81,6 +81,8 @@ enum StatusBit {
     StatusBit_RadioOverTemp = 8,
     StatusBit_GPSHasFix = 9,
     StatusBit_RuncamOn = 10,
+    StatusBit_CantTrustLink2Imu = 11,
+    StatusBit_StmBooted = 12,
 
 };
 

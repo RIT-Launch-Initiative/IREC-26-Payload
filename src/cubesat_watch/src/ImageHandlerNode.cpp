@@ -90,6 +90,9 @@ void ImageHandlerNode::handleImageRequest(const cubesat_msgs::msg::ImageRequest:
     meta.num_blocks = num_blocks;
     saveImageMetadata(meta, image_id);
     imageMetadataPub->publish(meta);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    RCLCPP_ERROR(get_logger(), "I know i cant take another image. Shutting down and the launch will bring me back");
+    rclcpp::shutdown();
 }
 
 std::optional<uint32_t> stringToImageId(const std::string &str) {

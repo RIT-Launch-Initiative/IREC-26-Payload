@@ -26,7 +26,7 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
                     uint8_t quality) { this->ask_for_image(left, right, top, bottom, output_width, quality); },
              [this]() { this->flight_timer->reset(); },
              [this]() { this->flight_timer->cancel(); },
-             [this](bool enabled) { this->setCamera(enabled); },
+             [this](bool enabled) { this->setCamera(enabled); this->status.set_runcam(enabled); },
              [this](State state) { this->change_internal_state(state); },
              [this](cubesat_msgs::msg::TelemetryType::_telem_id_type typ) {
                  this->primary_heartbeat_type.telem_id = typ;
@@ -115,6 +115,7 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     experts[(int)State::Unfolding] = new ArmExpert(get_logger(), levers, ArmState::Unfolding);
     experts[(int)State::AutoCamera] = new ArmExpert(get_logger(), levers, ArmState::Panoramaing);
     experts[(int)State::ManualControl] = new ManualExpert(get_logger(), levers);
+    experts[(int)State::Emergency] = new ManualExpert(get_logger(), levers);
 
     if (!openCameraLine()) {
         RCLCPP_WARN(get_logger(), "Failed to open runcam gpio");

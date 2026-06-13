@@ -57,6 +57,11 @@ class Expert {
     virtual void handle_gps_sample([[maybe_unused]] const cubesat_msgs::msg::GpsSample &sample) {}
     virtual void handle_power_sample([[maybe_unused]] const cubesat_msgs::msg::PowerSample &sample) {}
 
+
+    virtual void send_arm_to_target([[maybe_unused]] const cubesat_msgs::action::FlipServoAction::Goal &goal) {
+        RCLCPP_WARN(logger, "Ignoring request to actuate servo");
+    }
+
     virtual void send_arm_to_target([[maybe_unused]] const cubesat_msgs::action::ExtendArm::Goal &goal) {
         RCLCPP_WARN(logger, "Ignoring request to send arm to target");
     }

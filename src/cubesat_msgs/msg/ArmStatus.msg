@@ -12,3 +12,6 @@ bool flip_servo_en
 bool motor_en
 bool cant_trust_imu_link
 bool encoders_not_updating
+
+AccelSample last_link1_accel
+AccelSample last_link2_accel

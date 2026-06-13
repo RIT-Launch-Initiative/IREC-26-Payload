@@ -148,8 +148,8 @@ bool Sx1262Radio::open() {
     }
 
     // delay us = delay LSB * 15.625 us
-    // 1000 us =  64 
-    if (sx126x_set_dio3_as_tcxo_ctrl(&impl->hal, SX126X_TCXO_CTRL_1_8V, 64) != SX126X_STATUS_OK) {
+    // 2000 us =  128
+    if (sx126x_set_dio3_as_tcxo_ctrl(&impl->hal, SX126X_TCXO_CTRL_1_8V, 128) != SX126X_STATUS_OK) {
         RCLCPP_WARN(logger, "Failed to set dio3 as TCXO control. Necessary for EBYTE module");
         return false;
     }
@@ -203,7 +203,7 @@ bool Sx1262Radio::configure(const RadioProfile &profile) {
     if (errors != 0) {
         RCLCPP_WARN(logger, "Errors on pre set params: %d", (int)errors);
     }
-    RCLCPP_INFO(logger, "Configuring %d dbm at %f MHz", (int)profile.tx_power_dbm, profile.frequency_hz/1000000.0);
+    RCLCPP_INFO(logger, "Configuring %d dbm at %f MHz", (int)profile.tx_power_dbm, profile.frequency_hz / 1000000.0);
 
     if (sx126x_set_standby(&impl->hal, SX126X_STANDBY_CFG_XOSC) != SX126X_STATUS_OK ||
         sx126x_set_pkt_type(&impl->hal, SX126X_PKT_TYPE_LORA) != SX126X_STATUS_OK ||
@@ -225,8 +225,9 @@ bool Sx1262Radio::configure(const RadioProfile &profile) {
         to_coding_rate_enum(profile.coding_rate),
         compute_ldro(profile.spreading_factor, profile.bandwidth_hz),
     };
-    RCLCPP_INFO(logger, "Set SF%d BW%d CR%d LDRO:%d", profile.spreading_factor, profile.bandwidth_hz, profile.coding_rate, mod_params.ldro);
-    
+    RCLCPP_INFO(logger, "Set SF%d BW%d CR%d LDRO:%d", profile.spreading_factor, profile.bandwidth_hz,
+                profile.coding_rate, mod_params.ldro);
+
     if (sx126x_set_lora_mod_params(&impl->hal, &mod_params) != SX126X_STATUS_OK) {
         return false;
     }
@@ -307,7 +308,7 @@ bool Sx1262Radio::send(const std::vector<uint8_t> &data) {
     sx126x_get_status(&impl->hal, &post_tx_status);
 
     RCLCPP_DEBUG(logger, "Radio Status post tx pre irq: cmd %d, mode %d", (int)post_tx_status.cmd_status,
-                (int)post_tx_status.chip_mode);
+                 (int)post_tx_status.chip_mode);
 
     sx126x_irq_mask_t irq = 0;
 
@@ -316,13 +317,13 @@ bool Sx1262Radio::send(const std::vector<uint8_t> &data) {
 
     sx126x_get_status(&impl->hal, &post_tx_status);
     RCLCPP_DEBUG(logger, "Radio Status post irq pre set stbd: cmd %d, mode %d", (int)post_tx_status.cmd_status,
-                (int)post_tx_status.chip_mode);
+                 (int)post_tx_status.chip_mode);
 
     sx126x_set_standby(&impl->hal, SX126X_STANDBY_CFG_XOSC);
 
     sx126x_get_status(&impl->hal, &post_tx_status);
     RCLCPP_DEBUG(logger, "Radio Status post set stdby pre rx: cmd %d, mode %d", (int)post_tx_status.cmd_status,
-                (int)post_tx_status.chip_mode);
+                 (int)post_tx_status.chip_mode);
 
     // flip the external RF switch back to RX before re-entering receive mode
     if (!set_rf_switch_rx(impl->hal)) {
@@ -375,8 +376,11 @@ void Sx1262Radio::dumpStatus() {
 
     sx126x_chip_status_t status;
     sx126x_get_status(&impl->hal, &status);
-
-    RCLCPP_DEBUG(logger, "Radio Status: cmd %d, mode %d", (int)status.cmd_status, (int)status.chip_mode);
+    if (status.cmd_status == 5) {
+        RCLCPP_WARN(logger, "Radio Status: cmd %d, mode %d", (int)status.cmd_status, (int)status.chip_mode);
+    } else {
+        RCLCPP_DEBUG(logger, "Radio Status: cmd %d, mode %d", (int)status.cmd_status, (int)status.chip_mode);
+    }
 }
 
 bool Sx1262Radio::setReceiveMode() {

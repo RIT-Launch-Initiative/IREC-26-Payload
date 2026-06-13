@@ -100,7 +100,7 @@ void ArmExpert::decide_next() {
 
     if (current.isCloseEnoughTo(path[path_index])) {
         // take picture
-        RCLCPP_INFO(logger, "Arm step  %ld/%ld success. Taking pic and continuing", path_index+1, path.size());
+        RCLCPP_INFO(logger, "Arm step  %ld/%ld success. Taking pic and continuing", path_index + 1, path.size());
         levers.take_picture(0, 1280, 0, 800, 640, 2);
         const State state_when_started = levers.status.active_state();
         std::thread([this, state_when_started]() {
@@ -123,7 +123,7 @@ void ArmExpert::decide_next() {
             attempts_for_this_side++;
         }).detach();
     } else {
-        RCLCPP_INFO(logger, "Arm step  %ld/%ld fail. Trying again", path_index+1, path.size());
+        RCLCPP_INFO(logger, "Arm step  %ld/%ld fail. Trying again", path_index + 1, path.size());
         bool ignore_stall = attempts_for_this_side > allowed_per_side - num_allowed_to_ignore_stall;
         send_target(path[path_index], ignore_stall);
         attempts_for_this_side++;
@@ -133,8 +133,9 @@ void ArmExpert::enter_state() {
     const cubesat_msgs::msg::ArmStatus arm = levers.status.last_arm_status;
     const ArmPose current{(int8_t)arm.shoulder_yaw_deg, (int8_t)arm.shoulder_pitch_deg, (int8_t)arm.elbow_angle_deg,
                           (int8_t)arm.wrist_angle_deg};
+    levers.set_runcam_power(true);
 
-    if (!current.isCloseEnoughTo(path_for_state(for_state)[0])){
+    if (!current.isCloseEnoughTo(path_for_state(for_state)[0])) {
         RCLCPP_ERROR(logger, "Not anywhere close to starting point. Lowk an emergency");
         levers.goto_state(State::Emergency);
         return;
