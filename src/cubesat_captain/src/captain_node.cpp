@@ -164,7 +164,7 @@ void CaptainNode::requestStateChange(const std::shared_ptr<cubesat_msgs::srv::Re
                                      std::shared_ptr<cubesat_msgs::srv::RequestStateChange::Response> response) {
     State to_state = (State)request->to_state.state;
     if (to_state >= State::NumStates) {
-        response->success = true;
+        response->success = false;
         response->reason = "invalid state";
         return;
     }
@@ -255,7 +255,7 @@ void CaptainNode::handle_gnss(const cubesat_msgs::msg::GpsSample::SharedPtr samp
 }
 
 Expert *CaptainNode::expert_for_state(State state) {
-    if (state > State::NumStates) {
+    if (state >= State::NumStates) {
         return nullptr;
     }
     return experts[(int)state];
@@ -337,6 +337,10 @@ bool CaptainNode::openCameraLine() {
 }
 
 bool CaptainNode::setCamera(bool on) {
+    if (camera_gpio == nullptr){
+        RCLCPP_ERROR(get_logger(), "Bad gpio for set camera this is really bad and freaked up");
+        return false;
+    }
     gpiod_line_set_value(camera_gpio, on);
     return true;
 }

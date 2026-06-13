@@ -28,10 +28,10 @@ enum UnpackResult unpack_lora_link_change(const uint8_t *buf, int len,
   link_change->dbm = *(int8_t*)&buf[1];
 
   link_change->freq = 0;
-  link_change->freq |= ((uint32_t)buf[2] << 24) & 0xff;
-  link_change->freq |= ((uint32_t)buf[3] << 16) & 0xff;
-  link_change->freq |= ((uint32_t)buf[4] << 8) & 0xff;
-  link_change->freq |= ((uint32_t)buf[5] << 0) & 0xff;
+  link_change->freq |= ((uint32_t)buf[2] << 24);
+  link_change->freq |= ((uint32_t)buf[3] << 16);
+  link_change->freq |= ((uint32_t)buf[4] << 8);
+  link_change->freq |= ((uint32_t)buf[5] << 0);
 
 
   link_change->sf = (enum SpreadingFactor)((buf[6] >> SF_POS) & SF_MASK);
