@@ -58,7 +58,8 @@ enum class SpiCommand : uint8_t {
 
 };
 
-bool CrashoutSTM::open(std::string spidev, uint32_t speed_hz) {
+bool CrashoutSTM::open(std::string spidev, uint32_t speed_hz_) {
+    speed_hz = speed_hz_;
     spi_fd = ::open(spidev.c_str(), O_RDWR | O_CLOEXEC);
     if (spi_fd < 0) {
         return false;
