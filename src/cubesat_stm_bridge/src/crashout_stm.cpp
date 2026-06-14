@@ -19,6 +19,15 @@ void dump_transfer(std::string prefix, Transfer xfer) {
     }
     printf("\n");
 }
+Vec3_16 decode_vec3_16(uint8_t *buf) {
+    return {
+        .x = (int16_t)((buf[0] << 8) | buf[1]),
+        .y = (int16_t)((buf[2] << 8) | buf[3]),
+        .z = (int16_t)((buf[4] << 8) | buf[5]),
+    };
+}
+
+
 
 bool CheckStatusBit(StatusWord word, StatusBit bit_index) { return (word >> bit_index) & 1; }
 
@@ -123,7 +132,8 @@ void CrashoutSTM::startJogMovement() {
     uint8_t cmd = (uint8_t)SpiCommand::StartJog;
     transceive(Transfer{cmd});
 }
-void CrashoutSTM::startArmMovement(bool allow_overcurrent) {;
+void CrashoutSTM::startArmMovement(bool allow_overcurrent) {
+    ;
     uint8_t cmd = (uint8_t)(allow_overcurrent ? SpiCommand::StartArmNoCurrentLimit : SpiCommand::StartArm);
     transceive(Transfer{cmd});
 }
@@ -190,7 +200,7 @@ std::optional<FlipServoMotion> CrashoutSTM::getServoMotion(FlipServo servoid) {
         return std::nullopt;
     }
     dump_transfer("servo back: ", *xfer);
-    return decode_servo_motion(std::span<uint8_t>{*xfer}.subspan(2, 7));
+    return decode_servo_motion(std::span<uint8_t>{*xfer}.subspan(2, 5));
 }
 
 void CrashoutSTM::reset() {
@@ -247,6 +257,29 @@ std::optional<ArmPose> CrashoutSTM::getArmTarget() {
     return decode_pose(response->data() + 2);
 }
 
+std::optional<Vec3_16> CrashoutSTM::getLink1IMU() {
+    Transfer outbound{(uint8_t)SpiCommand::R_ReadLink1Accel};
+    transceive(outbound);
+    std::optional<Transfer> response = transceive(Transfer{});
+    if (!response.has_value()) {
+        return std::nullopt;
+    }
+
+    return decode_vec3_16(response->data() + 2);
+}
+
+std::optional<Vec3_16> CrashoutSTM::getLink2IMU() {
+    Transfer outbound{(uint8_t)SpiCommand::R_ReadLink2Accel};
+    transceive(outbound);
+    std::optional<Transfer> response = transceive(Transfer{});
+    if (!response.has_value()) {
+        return std::nullopt;
+    }
+
+    return decode_vec3_16(response->data() + 2);
+}
+
+
 void CrashoutSTM::recover() {
     // clear any waiting response by getting and discarding it
     transceive(Transfer{});
@@ -259,14 +292,6 @@ void encode_vec3_16(Vec3_16 v, uint8_t *buf) {
     buf[3] = v.y & 0xff;
     buf[4] = (v.z >> 8) & 0xff;
     buf[5] = v.z & 0xff;
-}
-
-Vec3_16 decode_vec3_16(uint8_t *buf) {
-    return {
-        .x = (int16_t)((buf[0] << 8) | buf[1]),
-        .y = (int16_t)((buf[2] << 8) | buf[3]),
-        .z = (int16_t)((buf[4] << 8) | buf[5]),
-    };
 }
 
 std::optional<Status> CrashoutSTM::setBaseImuAndReturnStatus(const Vec3_16 &base) {

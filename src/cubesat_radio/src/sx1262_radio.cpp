@@ -324,6 +324,7 @@ bool Sx1262Radio::send(const std::vector<uint8_t> &data) {
     RCLCPP_DEBUG(logger, "Radio Status post set stdby pre rx: cmd %d, mode %d", (int)post_tx_status.cmd_status,
                  (int)post_tx_status.chip_mode);
 
+    set_rf_switch_rx(impl->hal);
     return sx126x_set_rx_with_timeout_in_rtc_step(&impl->hal, SX126X_RX_CONTINUOUS) == SX126X_STATUS_OK;
 }
 

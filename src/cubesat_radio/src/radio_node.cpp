@@ -305,6 +305,13 @@ void RadioNode::RadioStateMachine::linkTestChanceExpired() {
 
 bool RadioNode::RadioStateMachine::submitPacketToSend(std::vector<uint8_t> packet) {
     RCLCPP_INFO(get_logger(), "Submitting packet of length %ld to queue", packet.size());
+    if (packet.empty()) {
+        RCLCPP_WARN(get_logger(), "Not submitting empty packet");
+        return false;
+    } else if (packet.size() > 255) {
+        RCLCPP_WARN(get_logger(), "Not submitting packet > 255 bytes");
+        return false;
+    }
     {
         std::lock_guard lk{queue_and_profile_mutex};
         outbound_queue.push(packet);
@@ -335,8 +342,7 @@ void RadioNode::radioLoop() {
             rsm.radio_flag_signal.wait(0); // handled everything last iter, wait for anything
         }
 
-        uint32_t status = rsm.radio_flag_signal.load();
-        rsm.radio_flag_signal.store(0);
+        uint32_t status = rsm.radio_flag_signal.exchange(0);
 
         bool packet_ready = (status & rsm.NEW_PACKET_BIT) != 0;
         bool interrupt_happened = (status & rsm.INTERRUPT_BIT) != 0;
@@ -411,7 +417,6 @@ void RadioNode::radioLoop() {
 
                 if (!radio->setReceiveMode()) {
                     RCLCPP_WARN(get_logger(), "Radio RX mode enable failed after link change");
-                    return;
                 }
                 radio->dumpStatus();
             }
@@ -471,7 +476,6 @@ void RadioNode::radioLoop() {
         }
     }
 }
-
 
 void RadioNode::RadioStateMachine::processEvent(RadioNode &node, EventType event, size_t queue_length) {
     switch (event) {

@@ -77,7 +77,7 @@ static void requestComplete(Request *request) {
         std::cout << "Plane length" << plane0.length << " fd " << plane0.fd.get() << std::endl;
 
         void *mmapped_memory = mmap(nullptr, plane0.length, PROT_READ, MAP_SHARED, plane0.fd.get(), plane0.offset);
-        if (mmapped_memory == NULL) {
+        if (mmapped_memory == MAP_FAILED) {
             std::cerr << "Failed to map memory" << std::endl;
             break;
         }
@@ -99,11 +99,6 @@ static void requestComplete(Request *request) {
 
         break;
     }
-
-    // for (auto bufferPair : buffers) {
-    //     FrameBuffer *buffer = bufferPair.second;
-    //     const FrameMetadata &metadata = buffer->metadata();
-    // }
 
     request->reuse(Request::ReuseBuffers);
     // camera->queueRequest(request);
@@ -203,14 +198,17 @@ cv::Mat take_image_and_crop(std::string path, uint16_t cropLeft, uint16_t cropRi
     camera->requestCompleted.connect(requestComplete);
 
     camera->start();
-    for (std::unique_ptr<Request> &request : requests){
+    for (std::unique_ptr<Request> &request : requests) {
         camera->queueRequest(request.get());
     }
 
-    while (!ignore) {
+    auto start_time = std::chrono::steady_clock::now();
+    constexpr auto timeout = std::chrono::milliseconds(5000);
+
+    while (!ignore && std::chrono::steady_clock::now() - start_time < timeout) {
         std::this_thread::sleep_for(100ms);
     }
-    std::cout << "Handler made image. Cleaning up" << std::endl;
+    std::cout << "Handler made image or timeout. Cleaning up" << std::endl;
 
     camera->stop();
     std::this_thread::sleep_for(100ms);

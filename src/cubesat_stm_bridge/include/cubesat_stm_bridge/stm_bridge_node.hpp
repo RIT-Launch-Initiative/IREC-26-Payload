@@ -80,6 +80,7 @@ class StmBridgeNode : public rclcpp::Node {
     BridgeMode active_mode{BridgeMode::Idle};
 
 
+    size_t counter = 0;
 
     rclcpp_action::Server<FlipServoAction>::SharedPtr flip_action_server_;
     std::shared_ptr<GoalHandleFlipServo> flip_servo_action_handle{nullptr};
@@ -100,6 +101,8 @@ class StmBridgeNode : public rclcpp::Node {
     StmBridge::CrashoutSTM crashout;
     cubesat_msgs::msg::ArmStatus last_status;
     cubesat_msgs::msg::AccelSample last_pi_imu;
+    cubesat_msgs::msg::AccelSample last_l1_imu;
+    cubesat_msgs::msg::AccelSample last_l2_imu;
 };
 
 } // namespace cubesat_stm_bridge

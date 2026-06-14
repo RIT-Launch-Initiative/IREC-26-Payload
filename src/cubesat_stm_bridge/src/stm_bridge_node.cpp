@@ -16,6 +16,8 @@ std::chrono::nanoseconds periodFromHz(double hz) {
 
 } // namespace
 
+static constexpr size_t imu_every = 50;
+
 StmBridgeNode::StmBridgeNode(const rclcpp::NodeOptions &options) : rclcpp::Node("stm_bridge_node", options) {
     // Shared (consumed by other nodes declared here so launch can pass it freely).
     declare_parameter<std::string>("flight_dir", "");
@@ -48,7 +50,6 @@ StmBridgeNode::StmBridgeNode(const rclcpp::NodeOptions &options) : rclcpp::Node(
         std::bind(&StmBridgeNode::handle_arm_cancel, this, _1),
         std::bind(&StmBridgeNode::handle_arm_accepted, this, _1));
 
-
     this->hold_service = create_service<cubesat_msgs::srv::HoldShut>(
         "/stm/hold_shut", std::bind(&StmBridgeNode::holdShut, this, std::placeholders::_1, std::placeholders::_2));
 
@@ -76,7 +77,6 @@ void StmBridgeNode::FillArmStatusFlags(StmBridge::StatusWord word, cubesat_msgs:
     status.motor_en = CheckStatusBit(word, StatusBit_MotorEn);
     status.cant_trust_imu_link = CheckStatusBit(word, StatusBitCantTrustImuLink);
     status.encoders_not_updating = CheckStatusBit(word, StatusBitEncodersNotUpdating);
-    
 }
 
 void StmBridgeNode::onStatusTimer() {
@@ -84,7 +84,6 @@ void StmBridgeNode::onStatusTimer() {
     auto maybe_status = crashout.setBaseImuAndReturnStatus(normed_v16(last_pi_imu));
     if (!maybe_status.has_value()) {
         RCLCPP_WARN(get_logger(), "Failed to get status from STM");
-        return;
     }
 
     StmBridge::Status arm_status = *maybe_status;
@@ -95,8 +94,28 @@ void StmBridgeNode::onStatusTimer() {
     pub_status.shoulder_pitch_deg = arm_status.pose.shoulder_pitch;
     pub_status.elbow_angle_deg = arm_status.pose.elbow_pitch;
     pub_status.wrist_angle_deg = arm_status.pose.wrist_pitch;
+    pub_status.last_link1_accel = last_l1_imu;
+    pub_status.last_link2_accel = last_l2_imu;
+
     last_status = pub_status;
     arm_pub->publish(pub_status);
+
+    counter++;
+    if (counter % imu_every == 1) {
+        auto value = crashout.getLink1IMU();
+        if (value) {
+            last_l1_imu.ax = value->x;
+            last_l1_imu.ay = value->y;
+            last_l1_imu.az = value->z;
+        }
+    } else if (counter % imu_every == 2) {
+        auto value = crashout.getLink2IMU();
+        if (value) {
+            last_l2_imu.ax = value->x;
+            last_l2_imu.ay = value->y;
+            last_l2_imu.az = value->z;
+        }
+    }
 
     switch (active_mode) {
     case BridgeMode::Idle:
@@ -177,7 +196,7 @@ void StmBridgeNode::tickServo(StmBridge::FlipServo servoid) {
     flip_servo_action_handle->publish_feedback(feedback);
 }
 
-void StmBridgeNode::tickArm(){
+void StmBridgeNode::tickArm() {
     if (arm_action_handle == nullptr) {
         RCLCPP_WARN(get_logger(), "Was in arm mode but arm action goal handle was null!!");
         active_mode = BridgeMode::Idle;
@@ -193,7 +212,8 @@ void StmBridgeNode::tickArm(){
 
     bool overtime = now() > arm_timeout_time;
     if (!still_moving || overtime) {
-        RCLCPP_INFO(get_logger(), "Finished Arm Movement. Overtime %s, movement failed: %s", overtime ? "yes" : "no", last_status.arm_move_failed ? "yes" : "no");
+        RCLCPP_INFO(get_logger(), "Finished Arm Movement. Overtime %s, movement failed: %s", overtime ? "yes" : "no",
+                    last_status.arm_move_failed ? "yes" : "no");
         // say end (if not cancelled, success)
         auto result = std::make_shared<ExtendArm::Result>();
         result->success = !overtime && !last_status.arm_move_failed;
@@ -222,9 +242,7 @@ void StmBridgeNode::tickArm(){
     auto feedback = std::make_shared<ExtendArm::Feedback>();
     feedback->arm_status = last_status;
     arm_action_handle->publish_feedback(feedback);
-
 }
-
 
 void StmBridgeNode::holdShut(const std::shared_ptr<cubesat_msgs::srv::HoldShut::Request> request,
                              std::shared_ptr<cubesat_msgs::srv::HoldShut::Response> response) {
@@ -278,7 +296,7 @@ void StmBridgeNode::zeroArm(const std::shared_ptr<cubesat_msgs::srv::ZeroArm::Re
         // start
         crashout.setPoseEst(
             {request->shoulder_yaw, request->shoulder_pitch, request->elbow_angle, request->wrist_angle});
-       response->success = true;
+        response->success = true;
     } else {
         RCLCPP_WARN(get_logger(), "Not zeroing arm because not idle. Was: %d", (int)active_mode);
         // decline
@@ -412,6 +430,9 @@ void StmBridgeNode::handle_imu(const cubesat_msgs::msg::AccelSample::SharedPtr s
 StmBridge::Vec3_16 StmBridgeNode::normed_v16(const cubesat_msgs::msg::AccelSample &sample) {
     float normsqred = sample.ax * sample.ax + sample.ay * sample.ay + sample.az * sample.az;
     float norm = std::sqrt(normsqred);
+    if (std::abs(norm) < 0.001) {
+        return {0, 0, 0};
+    }
     float nx = sample.ax / norm;
     float ny = sample.ay / norm;
     float nz = sample.az / norm;
