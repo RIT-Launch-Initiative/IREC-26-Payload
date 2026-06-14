@@ -301,9 +301,6 @@ void RadioNode::RadioStateMachine::signalStopping() {
 void RadioNode::RadioStateMachine::linkTestChanceExpired() {
     radio_flag_signal.fetch_or(LINK_TEST_CHANCE_EXPIRED_BIT);
     radio_flag_signal.notify_one();
-
-    interrupt_thread_running.store(false);
-    interrupt_thread_running.notify_one();
 }
 
 bool RadioNode::RadioStateMachine::submitPacketToSend(std::vector<uint8_t> packet) {
@@ -475,7 +472,6 @@ void RadioNode::radioLoop() {
     }
 }
 
-// RadioNode::RadioStateMachine::RadioStateMachine(RadioNode &node) : parent(node) {}
 
 void RadioNode::RadioStateMachine::processEvent(RadioNode &node, EventType event, size_t queue_length) {
     switch (event) {
@@ -555,47 +551,5 @@ void RadioNode::handleSendRadioPacket(const std::shared_ptr<cubesat_msgs::srv::S
                                       std::shared_ptr<cubesat_msgs::srv::SendRadioPacket::Response> response) {
     response->success = request != nullptr && rsm.submitPacketToSend(request->data);
 }
-
-// bool RadioNode::loadProfileFromFile(std::string path, RadioProfile &into) {
-//     try {
-//         // read file
-//         std::ifstream file(path, std::ios::in | std::ios::binary | std::ios::ate);
-//         file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
-
-//         std::streamsize size = file.tellg();
-//         file.seekg(0, std::ios::beg);
-
-//         std::vector<uint8_t> buffer(size);
-//         file.read(reinterpret_cast<char *>(buffer.data()), size);
-//         file.close();
-
-//         rclcpp::SerializedMessage serialized_msg;
-//         auto &rcl_msg = serialized_msg.get_rcl_serialized_message();
-
-//         // deserialize
-//         rmw_serialized_message_resize(&rcl_msg, size);
-//         std::memcpy(rcl_msg.buffer, buffer.data(), size);
-//         rcl_msg.buffer_length = size; // Explicitly set length to avoid invalid state errors
-
-//         rclcpp::Serialization<cubesat_msgs::msg::LoraParameters> serializer;
-//         serializer.deserialize_message(&serialized_msg, &profile);
-//         return true;
-//     } catch (std::exception &e) {
-//         RCLCPP_WARN(get_logger(), "Failed to load lora profile from file: %s", e.what());
-//         return false;
-//     }
-// }
-
-// void RadioNode::serializeProfile(std::string path, RadioProfile profile) {
-
-//     rclcpp::Serialization<cubesat_msgs::msg::LoraParameters> serializer;
-//     rclcpp::SerializedMessage serialized_msg;
-//     serializer.serialize_message(&profile, &serialized_msg);
-
-//     std::ofstream file(path, std::ios::out | std::ios::binary);
-//     file.write(reinterpret_cast<const char *>(serialized_msg.get_rcl_serialized_message().buffer),
-//                serialized_msg.get_rcl_serialized_message().buffer_length);
-//     file.close();
-// }
 
 } // namespace cubesat_radio

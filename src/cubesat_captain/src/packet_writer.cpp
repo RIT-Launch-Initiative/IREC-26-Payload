@@ -38,6 +38,18 @@ FlightState flight_state(const StatusAccumulator &status) {
     return {phase, status_bits};
 }
 
+int16_t mv_from_volts(float volts) {
+    float battery_mv = volts * 1000;
+
+    if (battery_mv < -32768.0f) {
+        return -32768;
+    } else if (battery_mv > 32767.0f) {
+        return 32767;
+    } else {
+        return (int16_t)battery_mv;
+    }
+}
+
 void packet_for_flight_heartbeat(const StatusAccumulator &status, FlightHeartbeatStats &telem) {
     telem.state = flight_state(status);
 
@@ -48,27 +60,23 @@ void packet_for_flight_heartbeat(const StatusAccumulator &status, FlightHeartbea
     }
     telem.altitude = (uint16_t)altitude_m;
 
-    if (status.takeoff_time == 0){
+    if (status.takeoff_time == 0) {
         telem.s_since_boost = 0;
     } else {
         rclcpp::Clock system_clock(RCL_SYSTEM_TIME);
         rclcpp::Time now = system_clock.now();
         uint32_t elapsed = (uint32_t)now.seconds() - status.takeoff_time;
-        if (elapsed > 65535){
+        if (elapsed > 65535) {
             elapsed = 65535;
         }
         telem.s_since_boost = (uint16_t)elapsed;
     }
 
-    if (status.last_power_sample.bus_voltage_v < -32768) {
-        telem.battery_mV = -32768;
-    } else if (status.last_power_sample.bus_voltage_v > 32767) {
-        telem.battery_mV = 32767;
-    } else {
-        telem.battery_mV = (uint16_t)(status.last_power_sample.bus_voltage_v * 1000);
-    }
+
+    telem.battery_mV = mv_from_volts(status.last_power_sample.bus_voltage_v);
     telem.radio_temp = 55; // TODO real
 }
+
 void packet_for_landed_heartbeat(const StatusAccumulator &status, LandedHeartbeatStats &telem) {
     telem.state = flight_state(status);
     telem.next_image_id = status.last_image_id;
@@ -78,15 +86,9 @@ void packet_for_landed_heartbeat(const StatusAccumulator &status, LandedHeartbea
     telem.arm_position.elbow_pitch = (int8_t)status.last_arm_status.elbow_angle_deg;
     telem.arm_position.wrist_pitch = (int8_t)status.last_arm_status.wrist_angle_deg;
 
-    if (status.last_power_sample.bus_voltage_v < -32768) {
-        telem.battery_mV = -32768;
-    } else if (status.last_power_sample.bus_voltage_v > 32767) {
-        telem.battery_mV = 32767;
-    } else {
-        telem.battery_mV = (uint16_t)(status.last_power_sample.bus_voltage_v * 1000);
-    }
     telem.motor_temp = 20;
     telem.radio_temp = 20;
+    telem.battery_mV = mv_from_volts(status.last_power_sample.bus_voltage_v);
 }
 void packet_for_actuators(const StatusAccumulator &status, Telemetry &telem) {}
 void packet_for_gnss(const StatusAccumulator &status, Telemetry &telem) {}

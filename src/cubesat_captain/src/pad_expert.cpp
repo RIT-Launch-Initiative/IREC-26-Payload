@@ -7,6 +7,7 @@ void PadExpert::enter_state() {
     levers.set_primary_heartbeat(cubesat_msgs::msg::TelemetryType::FLIGHT_HEARTBEAT);
     levers.set_runcam_power(false);
     levers.status.clear_takeoff_time();
+    has_boosted_ = false;
 }
 
 void PadExpert::handle_base_accel(const cubesat_msgs::msg::AccelSample &sample) {
@@ -15,6 +16,9 @@ void PadExpert::handle_base_accel(const cubesat_msgs::msg::AccelSample &sample) 
     avger.Feed(mag);
 
     has_boosted_ |= (avger.Avg() > levers.status.current_parameters.boost_threshold_mps2);
+    if (has_boosted_){
+        levers.goto_state(State::Flight);
+    }
 }
 
 void PreboostExpert::handle_base_accel(const cubesat_msgs::msg::AccelSample &sample) {

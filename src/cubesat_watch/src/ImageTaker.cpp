@@ -203,8 +203,9 @@ cv::Mat take_image_and_crop(std::string path, uint16_t cropLeft, uint16_t cropRi
     camera->requestCompleted.connect(requestComplete);
 
     camera->start();
-    for (std::unique_ptr<Request> &request : requests)
+    for (std::unique_ptr<Request> &request : requests){
         camera->queueRequest(request.get());
+    }
 
     while (!ignore) {
         std::this_thread::sleep_for(100ms);
