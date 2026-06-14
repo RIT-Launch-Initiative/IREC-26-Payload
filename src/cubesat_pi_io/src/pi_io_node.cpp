@@ -38,7 +38,7 @@ PiIoNode::PiIoNode(const rclcpp::NodeOptions &options) : rclcpp::Node("pi_io_nod
 
     // Buzzer
     const auto buzzer_period_ms = declare_parameter<int>("buzzer.period_ms", 10);
-    const auto buzzer_chip = declare_parameter<std::string>("buzzer.gpio_chip", "/dev/gpiochip0");
+    const auto buzzer_chip = declare_parameter<std::string>("buzzer.gpio_chip", "gpiochip0");
     const auto buzzer_pin = declare_parameter<int>("buzzer.gpio_pin", 17);
 
     gps_pub = create_publisher<cubesat_msgs::msg::GpsSample>("pi/gps", 10);

@@ -78,6 +78,15 @@ void ArmExpert::finish_good() {
         levers.goto_state(State::ManualControl);
     }
 }
+
+bool ArmExpert::stillInState() {
+    if (for_state == ArmState::Panoramaing) {
+        return (levers.status.active_state() == State::AutoCamera);
+    } else {
+        return (levers.status.active_state() == State::Unfolding);
+    }
+    return false;
+}
 void ArmExpert::decide_next() {
     std::span<ArmPose> path = path_for_state(for_state);
 
@@ -105,6 +114,9 @@ void ArmExpert::decide_next() {
         std::thread([this]() {
             std::this_thread::sleep_for(camera_wait);
             RCLCPP_INFO(logger, "Assuming camera took picture, continuing");
+            if (!stillInState()) {
+                return;
+            }
             path_index++;
             attempts_for_this_side = 0;
             std::span<ArmPose> path = path_for_state(for_state);

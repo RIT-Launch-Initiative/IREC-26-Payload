@@ -89,7 +89,7 @@ bool wait_for_irq(Sx126xLinuxHalContext &hal, sx126x_irq_mask_t wanted, uint32_t
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 
-    return true;
+    return false;
 }
 
 } // namespace

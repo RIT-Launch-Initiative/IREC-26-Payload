@@ -20,7 +20,7 @@ template <typename ValueT, std::size_t Length> class CCircularBuffer {
 
     constexpr value_type &OldestSample() { return underlying[oldest_index]; }
     constexpr value_type &NewestSample() {
-        std::size_t newset_index = oldest_index - 1;
+        std::size_t newset_index = (oldest_index + size_ - 1)%size_;
         if (newset_index < 0) {
             newset_index += size_;
         }

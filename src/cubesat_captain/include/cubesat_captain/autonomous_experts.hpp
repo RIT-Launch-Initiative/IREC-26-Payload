@@ -32,6 +32,8 @@ class ArmExpert : public Expert {
     void arm_result_cb(const GoalHandleExtendArm::WrappedResult &);
     void arm_feedback_cb(GoalHandleExtendArm::SharedPtr, const std::shared_ptr<const ExtendArm::Feedback> feedback);
 
+    bool stillInState();
+
   private:
     void send_target(const ArmPose &pose, bool ignore_stall);
     void decide_next();
