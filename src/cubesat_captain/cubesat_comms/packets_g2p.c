@@ -37,6 +37,51 @@ enum UnpackResult unpack_arm_target(const uint8_t *buf, uint32_t len, struct Arm
     return UnpackResult_AllGood;
 }
 
+
+int pack_motor_jog(const struct MotorJog *jog, uint8_t *buf){
+  buf[0] = jog->motor_id;
+  buf[1] = jog->duration_ticks;
+  pack_int16(jog->millivolts, buf+2);
+  
+  return SIZEOF_PACKERD_MOTOR_JOG;
+}
+
+enum UnpackResult unpack_motor_jog(const uint8_t *buf, int len, struct MotorJog *jog){
+  if (len < SIZEOF_PACKERD_MOTOR_JOG){
+    return UnpackResult_TooShort;
+  }
+  jog->motor_id = buf[0];
+  jog->duration_ticks = buf[1];
+  unpack_int16(buf+2, len-2, &jog->millivolts);
+
+  return UnpackResult_AllGood;
+}
+
+int pack_servo_motion(const struct ServoMotion *motion, uint8_t *buf){
+  buf[0] = motion->openness;
+  buf[1] = motion->open_travel_time;
+  buf[2] = motion->open_time;
+  buf[3] = motion->close_travel_time;
+  buf[4] = motion->closeness;
+
+  return SIZEOF_PACKED_SERVO_MOTION;
+}
+enum UnpackResult unpack_servo_motion(const uint8_t *buf, int len, struct ServoMotion *motion){
+  if (len < SIZEOF_PACKERD_MOTOR_JOG){
+    return UnpackResult_TooShort;
+  }
+  motion->openness = buf[0];
+  motion->open_travel_time = buf[1];
+  motion->open_time = buf[2];
+  motion->close_travel_time = buf[3];
+  motion->closeness = buf[4];
+
+  return UnpackResult_Unimplemented;
+
+}
+
+
+
 static const uint32_t take_picture_location = 7;
 static const uint8_t take_picture_mask = 1 << take_picture_location;
 
@@ -49,7 +94,6 @@ int pack_command_and_data(const struct CommandAndData *cmd_and_data, uint8_t *bu
     case Command_ExpectFlight:
     case Command_BackToPad:
     case Command_NewFlightDanger:
-    case Command_SetShoulder:
     case Command_StopVideo:
         return 1;
     case Command_Callsign:
@@ -75,6 +119,16 @@ int pack_command_and_data(const struct CommandAndData *cmd_and_data, uint8_t *bu
         return 1 + pack_arm_target(&cmd_and_data->send_arm_to_target_and_come_back, &buf[1]);
     case Command_SendArmTargetForPhotoAndComeBack:
         return 1 + pack_arm_target(&cmd_and_data->send_arm_to_target_for_photo_and_come_back, &buf[1]);
+
+    case Command_SetShoulder:
+        return 1 + pack_arm_target(&cmd_and_data->set_shoulder_position, &buf[1]);
+
+    case Command_JogMotor:
+      return 1+pack_motor_jog(&cmd_and_data->motor_jog, &buf[1]);
+
+    case Command_MoveServo:
+      return 1+pack_servo_motion(&cmd_and_data->servo_motion, &buf[1]);
+
     case Command_SendIdlePosition:
         return 1 + pack_arm_target(&cmd_and_data->send_idle_position, &buf[1]);
     case Command_TelemetryRequest:
@@ -132,6 +186,15 @@ enum UnpackResult unpack_command_and_data(const uint8_t *buf, int len, struct Co
         return unpack_arm_target(data_buf, data_len, &cmd_and_data->send_arm_to_target_for_photo_and_come_back);
     case Command_SendIdlePosition:
         return unpack_arm_target(data_buf, data_len, &cmd_and_data->send_idle_position);
+
+    case Command_SetShoulder:
+        return unpack_arm_target(data_buf, data_len, &cmd_and_data->set_shoulder_position);
+
+
+    case Command_MoveServo:
+      return unpack_servo_motion(data_buf, data_len, &cmd_and_data->servo_motion);
+    case Command_JogMotor:
+      return unpack_motor_jog(data_buf, data_len, &cmd_and_data->motor_jog);
     case Command_TelemetryRequest:
         if (data_len > 0) {
             cmd_and_data->telem_request.telem_type = data_buf[0];

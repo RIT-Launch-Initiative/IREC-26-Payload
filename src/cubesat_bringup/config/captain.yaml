@@ -6,7 +6,7 @@
     primary_heartbeat_s: 20.0
     secondary_heartbeat_s: 120.0 
 
-    boost_threshold_mps2: 7.0
+    boost_threshold_mps2: 68.6 # 7g
 
 
     warn_battery_threshold_v: 10.75

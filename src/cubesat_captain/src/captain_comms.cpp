@@ -86,19 +86,48 @@ void CaptainNode::handle_packet(const cubesat_msgs::msg::RadioPacket::SharedPtr 
             expert->send_arm_to_target_and_come_back_with_photo(goal);
         }
     } break;
+    case Command_JogMotor: {
+        auto request = std::make_shared<cubesat_msgs::srv::JogMotor::Request>();
+        request->motor = cmd_and_data.motor_jog.motor_id;
+        request->milliseconds = cmd_and_data.motor_jog.duration_ticks * 10;
+        request->voltage = (float)cmd_and_data.motor_jog.millivolts / 1000.0F;
+
+        levers.jog_motor_client->async_send_request(request);
+    } break;
+    case Command_MoveServo: {
+        Expert *expert = expert_for_state(status.active_state());
+        if (expert != nullptr) {
+            cubesat_msgs::action::FlipServoAction::Goal goal;
+            goal.openness = cmd_and_data.servo_motion.openness;
+            goal.open_travel_duration = cmd_and_data.servo_motion.open_travel_time;
+            goal.open_duration = cmd_and_data.servo_motion.open_time;
+            goal.closedness = cmd_and_data.servo_motion.closeness;
+            goal.close_travel_duration = cmd_and_data.servo_motion.close_travel_time;
+            expert->execute_servo_motion(goal);
+        }
+
+    } break;
+    case Command_SetShoulder: {
+        auto request = std::make_shared<cubesat_msgs::srv::ZeroArm::Request>();
+        request->shoulder_yaw = cmd_and_data.set_shoulder_position.shoulder_yaw;
+        request->shoulder_pitch = cmd_and_data.set_shoulder_position.shoulder_pitch;
+        request->elbow_angle = cmd_and_data.set_shoulder_position.elbow_pitch;
+        request->wrist_angle = cmd_and_data.set_shoulder_position.wrist_pitch;
+
+        levers.zero_arm_client->async_send_request(request);
+    } break;
     case Command_StartVideo:
         levers.set_runcam_power(true);
-        // TODO
         break;
     case Command_StopVideo:
         levers.set_runcam_power(false);
-        // TODO
         break;
     case Command_TakePicture: {
         ask_for_image(cmd_and_data.take_picture.left, cmd_and_data.take_picture.right, cmd_and_data.take_picture.top,
                       cmd_and_data.take_picture.bottom, cmd_and_data.take_picture.output_width,
                       cmd_and_data.take_picture.quality);
     } break;
+
     case Command_ImageMetadata: {
         uint8_t image_id = cmd_and_data.metadata_ask_image_id;
         // deserialize from filesystem

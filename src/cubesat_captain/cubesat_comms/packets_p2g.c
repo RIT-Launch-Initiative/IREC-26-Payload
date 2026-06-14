@@ -20,6 +20,39 @@ enum UnpackResult unpack_p2g_link_header(const uint8_t *buf, uint32_t len, struc
     return UnpackResult_AllGood;
 }
 
+int pack_v3int16(const struct v3int16 *f, uint8_t *buf) {
+    pack_int16(f->x, buf);
+    pack_int16(f->y, buf + 2);
+    pack_int16(f->z, buf + 4);
+    return 6;
+}
+enum UnpackResult unpack_v3int16(const uint8_t *buf, uint32_t len, struct v3int16 *v) {
+    if (len < 6) {
+        return UnpackResult_TooShort;
+    }
+    unpack_int16(buf, 2, &v->x);
+    unpack_int16(buf + 2, 2, &v->y);
+    unpack_int16(buf + 4, 2, &v->z);
+    return UnpackResult_AllGood;
+}
+
+int pack_imus(const struct IMUs *target, uint8_t *buf) {
+    size_t offset = 0;
+    offset += pack_v3int16(&target->base, buf + offset);
+    offset += pack_v3int16(&target->link1, buf + offset);
+    offset += pack_v3int16(&target->link2, buf + offset);
+    return offset;
+}
+enum UnpackResult unpack_imus(const uint8_t *buf, uint32_t len, struct IMUs *target) {
+    if (len < 18){
+        return UnpackResult_TooShort;
+    }
+    unpack_v3int16(buf, len, &target->base);
+    unpack_v3int16(buf + 6, len - 6, &target->base);
+    unpack_v3int16(buf + 6 * 2, len - 6 * 2, &target->base);
+    return UnpackResult_AllGood;
+}
+
 enum UnpackResult unpack_flight_state_and_status(const uint8_t *buf, uint32_t len, struct FlightState *state) {
     if (len < SIZEOF_PACKED_FLIGHT_STATE) {
         return UnpackResult_TooShort;
@@ -128,6 +161,8 @@ enum UnpackResult unpack_flight_heartbeat(const uint8_t *buf, uint32_t len, stru
     return UnpackResult_AllGood;
 }
 
+
+
 int pack_telemetry(const struct Telemetry *telem, uint8_t *buf) {
     buf[0] = telem->telem_type;
     switch (telem->telem_type) {
@@ -141,6 +176,7 @@ int pack_telemetry(const struct Telemetry *telem, uint8_t *buf) {
     case TelemetryType_GNSS:
     case TelemetryType_System:
     case TelemetryType_Orientations:
+        return 1 + pack_imus(&telem->orientations, buf + 1);
     case TelemetryType_Temps:
     case TelemetryType_Power:
         break;
@@ -176,6 +212,8 @@ enum UnpackResult unpack_command_response(const uint8_t *buf, uint32_t len, stru
     case Command_ForceManual:
     case Command_SetShoulder:
     case Command_TakePicture:
+    case Command_MoveServo:
+    case Command_SendIdlePosition:
         return UnpackResult_AllGood;
     case Command_ImageMetadata:
         return unpack_image_metadata(buf + 1, len - 1, &resp->image_metadata);
@@ -187,11 +225,6 @@ enum UnpackResult unpack_command_response(const uint8_t *buf, uint32_t len, stru
     case Command_ReCrop:
     case Command_SendArmTargetAndComeBack:
     case Command_SendArmTargetForPhotoAndComeBack:
-    case Command_SendIdlePosition:
-    case Command_ShellExec:
-    case Command_ShellExecInfo:
-    case Command_ShellReadStdout:
-    case Command_ShellReadStderr:
     case Command_NewFlightDanger:
     case Command_Callsign:
         return UnpackResult_Unimplemented;
@@ -239,6 +272,7 @@ enum UnpackResult unpack_telemetry(const uint8_t *buf, uint32_t len, struct Tele
 
     case TelemetryType_System:
     case TelemetryType_Orientations:
+      return unpack_imus(buf+1, len-1, &telem->orientations);
     case TelemetryType_Temps:
     case TelemetryType_Power:
         return UnpackResult_UnknownCommand;

@@ -34,12 +34,34 @@ struct RecropData {
 };
 #define SIZEOF_PACKED_RECROP_DATA (1 + SIZEOF_PACKED_PHOTOTRANSFORM)
 
-struct ServoMotion {};
+struct ServoMotion
+{
+    uint8_t openness;
+    uint8_t open_travel_time;
+    uint8_t open_time;
+    uint8_t close_travel_time;
+    uint8_t closeness;
+};
+#define SIZEOF_PACKED_SERVO_MOTION 5
 
-struct TelemetryRequestData {
+int pack_servo_motion(const struct ServoMotion *motion, uint8_t *buf);
+enum UnpackResult unpack_servo_motion(const uint8_t *buf, int len, struct ServoMotion *motion);
+
+struct MotorJog
+{
+    uint8_t motor_id;
+    uint8_t duration_ticks;
+    int16_t millivolts;
+};
+#define SIZEOF_PACKERD_MOTOR_JOG 4
+
+int pack_motor_jog(const struct MotorJog *jog, uint8_t *buf);
+enum UnpackResult unpack_motor_jog(const uint8_t *buf, int len, struct MotorJog *motion);
+
+struct TelemetryRequestData
+{
     enum TelemetryType telem_type;
 };
-
 
 struct Callsign {
     uint8_t buf[6];
@@ -76,7 +98,10 @@ struct CommandAndData {
         struct ArmTarget send_arm_to_target_and_come_back;
         struct ArmTarget send_arm_to_target_for_photo_and_come_back;
         struct ArmTarget send_idle_position;
-        // SetShoulderPosition
+        struct ArmTarget set_shoulder_position;
+
+        struct MotorJog motor_jog;
+        struct ServoMotion servo_motion;
 
         // ClearFlight
         struct TelemetryRequestData telem_request;

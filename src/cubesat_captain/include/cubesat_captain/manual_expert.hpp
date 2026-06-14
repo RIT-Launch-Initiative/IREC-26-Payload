@@ -30,6 +30,8 @@ class ManualExpert : public Expert {
     void send_arm_to_target_and_come_back(const cubesat_msgs::action::ExtendArm::Goal &goal);
     void send_arm_to_target_and_come_back_with_photo(const cubesat_msgs::action::ExtendArm::Goal &goal);
 
+    void execute_servo_motion(const cubesat_msgs::action::FlipServoAction::Goal &goal) override;
+
     void flip_response_cb(GoalHandleFlipServoAction::SharedPtr future);
     void flip_result_cb(const GoalHandleFlipServoAction::WrappedResult &result);
     void flip_feedback_cb(GoalHandleFlipServoAction::SharedPtr,

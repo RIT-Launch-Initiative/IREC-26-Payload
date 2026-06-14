@@ -8,6 +8,7 @@ void PadExpert::enter_state() {
     levers.set_runcam_power(false);
     levers.status.clear_takeoff_time();
     has_boosted_ = false;
+    avger.Fill(0);
 }
 
 void PadExpert::handle_base_accel(const cubesat_msgs::msg::AccelSample &sample) {
@@ -16,7 +17,8 @@ void PadExpert::handle_base_accel(const cubesat_msgs::msg::AccelSample &sample) 
     avger.Feed(mag);
 
     has_boosted_ |= (avger.Avg() > levers.status.current_parameters.boost_threshold_mps2);
-    if (has_boosted_){
+    if (has_boosted_) {
+        RCLCPP_INFO(logger, "Detected boost: Avg: %f Current: %f,%f,%f  = %f", avger.Avg(), sample.ax, sample.ay, sample.az, mag);
         levers.goto_state(State::Flight);
     }
 }
@@ -25,7 +27,10 @@ void PreboostExpert::handle_base_accel(const cubesat_msgs::msg::AccelSample &sam
     pad_expert->handle_base_accel(sample);
 }
 
-void PreboostExpert::enter_state() { levers.set_runcam_power(true); }
+void PreboostExpert::enter_state() {
+    pad_expert->enter_state();
+    levers.set_runcam_power(true);
+}
 
 } // namespace cubesat_captain
 

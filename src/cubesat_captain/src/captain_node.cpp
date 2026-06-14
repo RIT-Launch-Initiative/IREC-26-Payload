@@ -24,8 +24,8 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
              rclcpp_action::create_client<cubesat_msgs::action::FlipServoAction>(this, "/stm/flip_servo"),
              [this](uint16_t left, uint16_t right, uint16_t top, uint16_t bottom, uint16_t output_width,
                     uint8_t quality) { this->ask_for_image(left, right, top, bottom, output_width, quality); },
-             [this]() { this->flight_timer->reset(); },
              [this]() { this->flight_timer->cancel(); },
+             [this]() { this->flight_timer->reset(); },
              [this](bool enabled) { this->setCamera(enabled); this->status.set_runcam(enabled); },
              [this](State state) { this->change_internal_state(state); },
              [this](cubesat_msgs::msg::TelemetryType::_telem_id_type typ) {
@@ -177,7 +177,7 @@ void CaptainNode::load_startup_parameters() {
     status.current_parameters.pad_heartbeat_s = declare_parameter<double>("pad_heartbeat_s", 0.05);
     status.current_parameters.primary_heartbeat_s = declare_parameter<double>("primary_heartbeat_s", 0.2);
     status.current_parameters.secondary_heartbeat_s = declare_parameter<double>("secondary_heartbeat_s", 0.2);
-    status.current_parameters.boost_threshold_mps2 = declare_parameter<double>("boost_threshold_mps2", 7);
+    status.current_parameters.boost_threshold_mps2 = declare_parameter<double>("boost_threshold_mps2", 7*9.8);
 
     status.current_parameters.warn_battery_threshold_v = declare_parameter<double>("warn_battery_threshold_v", 10.75);
     status.current_parameters.danger_battery_threshold_v =

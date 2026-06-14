@@ -51,7 +51,25 @@ void ManualExpert::flip_result_cb(const GoalHandleFlipServoAction::WrappedResult
     RCLCPP_INFO(logger, "Manual Flip Response CB");
 }
 void ManualExpert::flip_feedback_cb(GoalHandleFlipServoAction::SharedPtr,
-                                    const std::shared_ptr<const FlipServoAction::Feedback> feedback) {
+                                    const std::shared_ptr<const FlipServoAction::Feedback> feedback) {}
+
+void ManualExpert::execute_servo_motion(const cubesat_msgs::action::FlipServoAction::Goal &goal) {
+    using namespace std::placeholders;
+
+    RCLCPP_INFO(logger, "Received request for manual servo #%d", goal.servo_id.id);
+
+    auto send_goal_options = rclcpp_action::Client<FlipServoAction>::SendGoalOptions();
+    send_goal_options.goal_response_callback = [this](GoalHandleFlipServoAction::SharedPtr goal) {
+        if (!goal) {
+            RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Flip Servo goal was rejected by server");
+        } else {
+            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Flip servo goal accepted by server");
+        }
+    };
+    send_goal_options.feedback_callback = std::bind(&ManualExpert::flip_feedback_cb, this, _1, _2);
+    send_goal_options.result_callback = std::bind(&ManualExpert::flip_result_cb, this, _1);
+
+    levers.flip_servo_action_client->async_send_goal(goal, send_goal_options);
 }
 
 } // namespace cubesat_captain

@@ -65,7 +65,8 @@ void ImageHandlerNode::handleImageRequest(const cubesat_msgs::msg::ImageRequest:
         take_image_and_crop(filePath, msg->left, msg->right, msg->top, msg->bottom, msg->output_width);
 
     if (downscaledImage.rows == 0) {
-        RCLCPP_ERROR(get_logger(), "Failed to take image");
+        RCLCPP_ERROR(get_logger(), "Failed to take image, gonna restart");
+        rclcpp::shutdown();
         return;
     }
 

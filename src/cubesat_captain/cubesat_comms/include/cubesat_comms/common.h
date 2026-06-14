@@ -43,20 +43,27 @@ int pack_float(float f, uint8_t *buf);
 enum UnpackResult unpack_float(const uint8_t *buf, uint32_t len, float *f);
 
 struct v3int8 {
-  int8_t x;
-  int8_t y;
-  int8_t z;
+    int8_t x;
+    int8_t y;
+    int8_t z;
 };
+struct v3int16 {
+    int16_t x;
+    int16_t y;
+    int16_t z;
+};
+int pack_v3int16(const struct v3int16 *f, uint8_t *buf);
+enum UnpackResult unpack_v3int16(const uint8_t *buf, uint32_t len, struct v3int16 *f);
 
 struct BatteryTelemetry {
-  int16_t voltage;  // mV
-  uint16_t current; // mA
+    int16_t voltage;  // mV
+    uint16_t current; // mA
 };
 
 struct ArmAbsoluteTelemetryLowRes {
-  struct v3int8 base_accel;
-  struct v3int8 upper_arm_accel;
-  struct v3int8 forearm_accel;
+    struct v3int8 base_accel;
+    struct v3int8 upper_arm_accel;
+    struct v3int8 forearm_accel;
 };
 
 struct ArmTarget {
@@ -70,8 +77,7 @@ struct ArmTarget {
 int pack_arm_target(const struct ArmTarget *target, uint8_t *buf);
 enum UnpackResult unpack_arm_target(const uint8_t *buf, uint32_t len, struct ArmTarget *target);
 
-struct PhotoTransform
-{
+struct PhotoTransform {
     // 1. select a box of left,right,top,bottom
     uint16_t left;
     uint16_t right;
@@ -89,9 +95,7 @@ struct PhotoTransform
     // qqqwwwwwwwwwwwww
 };
 #define SIZEOF_PACKED_PHOTOTRANSFORM (2 * 5)
-enum UnpackResult unpack_phototransform(const uint8_t *buf,
-                                        uint32_t len,
-                                        struct PhotoTransform *tform);
+enum UnpackResult unpack_phototransform(const uint8_t *buf, uint32_t len, struct PhotoTransform *tform);
 int pack_phototransform(const struct PhotoTransform *tform, uint8_t *buf);
 
 // vcgencmd measure_temp
@@ -136,13 +140,9 @@ enum Command {
     // hear back
     Command_SetShoulder, // tell the stm the position of all the joints
 
-    Command_ShellExec, // execute a shell command - does not necessarily wait for
-    // it to finish (tho like don't run an infinitely running
-    // command unless you mean to)
-    Command_ShellExecInfo, // get results of previous command, response of exit
-    // code and length of stdout, stderr
-    Command_ShellReadStdout,
-    Command_ShellReadStderr,
+    Command_JogMotor,
+    Command_MoveServo,
+
     Command_NewFlightDanger, // DANGER delete the 'we launched' flag and reset
     // counters and delete directories for images and
     // shell commands. Restarts all programs, may blink

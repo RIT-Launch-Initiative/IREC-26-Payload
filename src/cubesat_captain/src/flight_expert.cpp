@@ -4,7 +4,7 @@ namespace cubesat_captain {
 FlightExpert::FlightExpert(rclcpp::Logger logger, Levers &levers) : Expert(logger, levers) {}
 
 void FlightExpert::enter_state() {
-    RCLCPP_INFO(logger, "Starting flight Timer");
+    RCLCPP_INFO(logger, "Starting flight");
     levers.start_flight_timer();
     levers.status.set_takeoff_time();
     levers.set_runcam_power(true);

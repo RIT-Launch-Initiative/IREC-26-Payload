@@ -1,4 +1,5 @@
 #include "cubesat_captain/packet_writer.hpp"
+#include "cubesat_captain/common.hpp"
 #include "cubesat_comms/packets_p2g.h"
 #include <rclcpp/rclcpp.hpp>
 
@@ -72,7 +73,6 @@ void packet_for_flight_heartbeat(const StatusAccumulator &status, FlightHeartbea
         telem.s_since_boost = (uint16_t)elapsed;
     }
 
-
     telem.battery_mV = mv_from_volts(status.last_power_sample.bus_voltage_v);
     telem.radio_temp = 55; // TODO real
 }
@@ -90,12 +90,30 @@ void packet_for_landed_heartbeat(const StatusAccumulator &status, LandedHeartbea
     telem.radio_temp = 20;
     telem.battery_mV = mv_from_volts(status.last_power_sample.bus_voltage_v);
 }
-void packet_for_actuators(const StatusAccumulator &status, Telemetry &telem) {}
-void packet_for_gnss(const StatusAccumulator &status, Telemetry &telem) {}
-void packet_for_system_stats(const StatusAccumulator &status, Telemetry &telem) {}
-void packet_for_orientations(const StatusAccumulator &status, Telemetry &telem) {}
-void packet_for_temps(const StatusAccumulator &status, Telemetry &telem) {}
-void packet_for_power(const StatusAccumulator &status, Telemetry &telem) {}
+void packet_for_actuators([[maybe_unused]] const StatusAccumulator &status, [[maybe_unused]] Telemetry &telem) {}
+void packet_for_gnss([[maybe_unused]] const StatusAccumulator &status, [[maybe_unused]] Telemetry &telem) {}
+void packet_for_system_stats([[maybe_unused]] const StatusAccumulator &status, [[maybe_unused]] Telemetry &telem) {}
+void packet_for_orientations(const StatusAccumulator &status, IMUs &telem) {
+    auto saturate16 = [](float normed) -> int16_t {
+        if (normed * 32767 > 32767) {
+            return 32767;
+        } else if (normed * 32767 < -32767) {
+            return -32767;
+        }
+        return (int16_t)(normed * 32767);
+    };
+    auto base_accel_normed = normalize_accel(status.last_base_accel);
+
+    telem.base.x = saturate16(base_accel_normed.ax);
+    telem.base.y = saturate16(base_accel_normed.ay);
+    telem.base.z = saturate16(base_accel_normed.az);
+
+    telem.link2.x = saturate16(status.last_arm_status.last_link2_accel.ax / 32767);
+    telem.link2.y = saturate16(status.last_arm_status.last_link2_accel.ay / 32767);
+    telem.link2.z = saturate16(status.last_arm_status.last_link2_accel.az / 32767);
+}
+void packet_for_temps([[maybe_unused]] const StatusAccumulator &status, [[maybe_unused]] Telemetry &telem) {}
+void packet_for_power([[maybe_unused]] const StatusAccumulator &status, [[maybe_unused]] Telemetry &telem) {}
 
 int packet_for_telemetry(const StatusAccumulator &status, cubesat_msgs::msg::TelemetryType telem_type, uint8_t *span) {
     P2GLinkHeader header = P2GLinkHeader{P2GPacketType_CommandResponse, 1};
@@ -127,7 +145,7 @@ int packet_for_telemetry(const StatusAccumulator &status, cubesat_msgs::msg::Tel
         break;
     case TT::ORIENTATIONS:
         resp.telemetry.telem_type = TelemetryType_Orientations;
-        packet_for_orientations(status, resp.telemetry);
+        packet_for_orientations(status, resp.telemetry.orientations);
         break;
     case TT::TEMPS:
         resp.telemetry.telem_type = TelemetryType_Temps;
