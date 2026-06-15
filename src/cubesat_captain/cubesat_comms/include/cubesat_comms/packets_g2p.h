@@ -41,8 +41,9 @@ struct ServoMotion
     uint8_t open_time;
     uint8_t close_travel_time;
     uint8_t closeness;
+    uint8_t which_servo;
 };
-#define SIZEOF_PACKED_SERVO_MOTION 5
+#define SIZEOF_PACKED_SERVO_MOTION 6
 
 int pack_servo_motion(const struct ServoMotion *motion, uint8_t *buf);
 enum UnpackResult unpack_servo_motion(const uint8_t *buf, int len, struct ServoMotion *motion);

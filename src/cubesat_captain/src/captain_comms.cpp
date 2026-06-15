@@ -98,6 +98,7 @@ void CaptainNode::handle_packet(const cubesat_msgs::msg::RadioPacket::SharedPtr 
         Expert *expert = expert_for_state(status.active_state());
         if (expert != nullptr) {
             cubesat_msgs::action::FlipServoAction::Goal goal;
+            goal.servo_id.id = cmd_and_data.servo_motion.which_servo;
             goal.openness = cmd_and_data.servo_motion.openness;
             goal.open_travel_duration = cmd_and_data.servo_motion.open_travel_time;
             goal.open_duration = cmd_and_data.servo_motion.open_time;

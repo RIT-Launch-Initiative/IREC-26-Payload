@@ -42,6 +42,8 @@ class StmBridgeNode : public rclcpp::Node {
     rclcpp::TimerBase::SharedPtr status_timer;
     rclcpp::Publisher<cubesat_msgs::msg::ArmStatus>::SharedPtr arm_pub;
 
+
+    void attemptRestart();
     void onStatusTimer();
     void tickServo(StmBridge::FlipServo servoid);
     void tickArm();

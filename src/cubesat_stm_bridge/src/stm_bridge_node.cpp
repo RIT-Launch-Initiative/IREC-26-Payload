@@ -79,11 +79,27 @@ void StmBridgeNode::FillArmStatusFlags(StmBridge::StatusWord word, cubesat_msgs:
     status.encoders_not_updating = CheckStatusBit(word, StatusBitEncodersNotUpdating);
 }
 
+void StmBridgeNode::attemptRestart(){
+    // save last arm pos
+    // hard reset 
+    // wait a bit
+    // recover
+    // 
+}
+
 void StmBridgeNode::onStatusTimer() {
+    int num_fails = 0;
     using namespace StmBridge;
     auto maybe_status = crashout.setBaseImuAndReturnStatus(normed_v16(last_pi_imu));
     if (!maybe_status.has_value()) {
         RCLCPP_WARN(get_logger(), "Failed to get status from STM");
+        num_fails++;
+    } else if (!CheckStatusBit(maybe_status->status_word, StatusBit_Booted)){
+        num_fails++;
+    }
+    if (num_fails > 10){
+        attemptRestart();
+        return;
     }
 
     StmBridge::Status arm_status = *maybe_status;

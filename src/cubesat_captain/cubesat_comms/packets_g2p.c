@@ -63,7 +63,7 @@ int pack_servo_motion(const struct ServoMotion *motion, uint8_t *buf){
   buf[2] = motion->open_time;
   buf[3] = motion->close_travel_time;
   buf[4] = motion->closeness;
-
+  buf[5] = motion->which_servo;
   return SIZEOF_PACKED_SERVO_MOTION;
 }
 enum UnpackResult unpack_servo_motion(const uint8_t *buf, int len, struct ServoMotion *motion){
@@ -75,11 +75,11 @@ enum UnpackResult unpack_servo_motion(const uint8_t *buf, int len, struct ServoM
   motion->open_time = buf[2];
   motion->close_travel_time = buf[3];
   motion->closeness = buf[4];
+  motion->which_servo= buf[5];
 
-  return UnpackResult_Unimplemented;
+  return UnpackResult_AllGood;
 
 }
-
 
 
 static const uint32_t take_picture_location = 7;
