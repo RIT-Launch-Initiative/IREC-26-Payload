@@ -52,6 +52,7 @@ struct v3int16 {
     int16_t y;
     int16_t z;
 };
+#define SIZEOF_PACKED_V3INT16 6
 int pack_v3int16(const struct v3int16 *f, uint8_t *buf);
 enum UnpackResult unpack_v3int16(const uint8_t *buf, uint32_t len, struct v3int16 *f);
 

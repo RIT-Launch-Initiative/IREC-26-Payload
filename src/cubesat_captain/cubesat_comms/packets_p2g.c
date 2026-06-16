@@ -91,6 +91,8 @@ int pack_landed_heartbeat(const struct LandedHeartbeatStats *stats, uint8_t *buf
     buf[offset] = stats->motor_temp;
     buf[offset + 1] = stats->radio_temp;
     offset += 2;
+    offset += pack_v3int16(&stats->base_accel, buf+offset);
+    offset += pack_v3int16(&stats->link2_accel, buf+offset);
     return offset;
 }
 
@@ -112,6 +114,11 @@ enum UnpackResult unpack_landed_heartbeat(const uint8_t *buf, uint32_t len, stru
     stats->motor_temp = buf[offset];
     offset += sizeof(uint8_t);
     stats->radio_temp = buf[offset];
+    offset += sizeof(uint8_t);
+    unpack_v3int16(buf+offset, len-offset, &stats->base_accel);
+    offset+=SIZEOF_PACKED_V3INT16;
+    unpack_v3int16(buf+offset, len-offset, &stats->link2_accel);
+    offset+=SIZEOF_PACKED_V3INT16;
 
     return UnpackResult_AllGood;
 }

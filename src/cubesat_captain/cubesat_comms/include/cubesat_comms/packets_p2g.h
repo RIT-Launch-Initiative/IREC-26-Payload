@@ -96,8 +96,12 @@ struct LandedHeartbeatStats {
     int16_t battery_mV;
     uint8_t motor_temp;
     uint8_t radio_temp;
+    struct v3int16 base_accel;
+    struct v3int16 link2_accel;
 };
-#define SIZEOF_PACKED_LANDED_HEARTBEAT_STATS (SIZEOF_PACKED_FLIGHT_STATE + 1 + 1 + SIZEOF_PACKED_ARM_TARGET + 2 + 1 + 1)
+#define SIZEOF_PACKED_LANDED_HEARTBEAT_STATS                                                                           \
+    (SIZEOF_PACKED_FLIGHT_STATE + 1 + 1 + SIZEOF_PACKED_ARM_TARGET + 2 + 1 + 1 + SIZEOF_PACKED_V3INT16 +               \
+     SIZEOF_PACKED_V3INT16)
 
 struct FlightHeartbeatStats {
     struct FlightState state;
