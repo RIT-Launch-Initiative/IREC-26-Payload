@@ -122,7 +122,10 @@ enum Command {
     Command_ExpectFlight, // start going faster and sending me more packets for status of flight bc you're about to take
                           // off. maybe also turn on cameras
 
-    Command_BackToPad,  // go back to normal waitin on the pad mode
+    Command_BackToPad, // go back to normal waitin on the pad mode
+    Command_StartAutoFlipping,
+    Command_UnfoldArm,
+    Command_Panorama,
     Command_StartVideo, // Start Runcam  video TODO
     Command_StopVideo,  // Stop Runcam video TODO
     Command_TakePicture,

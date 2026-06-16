@@ -41,11 +41,12 @@ def main():
         "flight.launch.py",
         f"flight_dir:={flight_dir}",
     ]
+    cmd_str = f"source ~/source_ros && ros2 launch cubesat_bringup flight.launch.py flight_dir:={flight_dir}" 
 
     print(f"[start_flight] Executing: {' '.join(cmd)}")
 
     try:
-        subprocess.run(cmd, check=True)
+        subprocess.run(cmd_str, check=True, shell=True)
     except KeyboardInterrupt:
         print("\n[start_flight] Shutdown requested.")
     except subprocess.CalledProcessError as exc:

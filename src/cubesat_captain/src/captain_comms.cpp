@@ -62,6 +62,15 @@ void CaptainNode::handle_packet(const cubesat_msgs::msg::RadioPacket::SharedPtr 
     case Command_BackToPad:
         change_internal_state(State::Pad);
         break;
+    case Command_StartAutoFlipping:
+        change_internal_state(State::Flipping);
+        break;
+    case Command_UnfoldArm:
+        change_internal_state(State::Unfolding);
+        break;
+    case Command_Panorama:
+        change_internal_state(State::AutoCamera);
+        break;
     case Command_TelemetryRequest: {
         cubesat_msgs::msg::TelemetryType telem_type;
         telem_type.telem_id = cmd_and_data.telem_request.telem_type;

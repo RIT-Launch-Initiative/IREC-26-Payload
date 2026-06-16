@@ -93,6 +93,9 @@ int pack_command_and_data(const struct CommandAndData *cmd_and_data, uint8_t *bu
     case Command_ForceFlight:
     case Command_ExpectFlight:
     case Command_BackToPad:
+    case Command_StartAutoFlipping:
+    case Command_UnfoldArm:
+    case Command_Panorama:
     case Command_NewFlightDanger:
     case Command_StopVideo:
         return 1;
@@ -156,6 +159,9 @@ enum UnpackResult unpack_command_and_data(const uint8_t *buf, int len, struct Co
     case Command_ForceFlight:
     case Command_ExpectFlight:
     case Command_BackToPad:
+    case Command_StartAutoFlipping:
+    case Command_UnfoldArm:
+    case Command_Panorama:
     case Command_NewFlightDanger:
     case Command_StopVideo:
         return UnpackResult_AllGood; // no data with these messages
@@ -202,6 +208,10 @@ enum UnpackResult unpack_command_and_data(const uint8_t *buf, int len, struct Co
         } else {
             return UnpackResult_TooShort;
         }
+    case Command_Callsign:{
+      memcpy(cmd_and_data->callsign.buf, data_buf, sizeof(cmd_and_data->callsign.buf));
+      return UnpackResult_AllGood;
+    } break;
     case Command_MaxCommand:
         return UnpackResult_UnknownCommand;
     }

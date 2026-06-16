@@ -22,7 +22,7 @@ bool ArmPose::isCloseEnoughTo(const ArmPose &other) const {
 
 ArmPose unfold_path[4] = {
 
-    ArmPose{0, 90, -90, 127}, // folded up flight configuration
+    ArmPose{0, 90, -120, 127}, // folded up flight configuration
     ArmPose{0, 90, -60, 127}, // point up (cam pointed towards reco bay)
     ArmPose{0, 0, -60, -80},  // lift shoulder  (cam towards stern and a bit up)
     ArmPose{0, 0, -20, -127}, // straighten up (cam towards stern again, link 2 not all the way see the ground)
