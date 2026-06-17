@@ -140,7 +140,10 @@ void FlippingExpert::flip_finish() {
 
 void FlippingExpert::enter_state() {
     // todo check if this has been done before (possible if we were sent back to flipping)
-
+    opened_side_1 = false;
+    opened_side_2 = false;
+    opened_side_3 = false;
+    
     cubesat_msgs::msg::FlipServo servo{};
     servo.id = cubesat_msgs::msg::FlipServo::FLIP_SERVO_2;
     start_flip(servo);

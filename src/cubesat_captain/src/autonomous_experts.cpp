@@ -11,8 +11,8 @@ static constexpr size_t allowed_per_side = 10;
 static constexpr size_t num_allowed_to_ignore_stall = 2;
 
 // really large deadband bc as long as we're reasonably close, we might as well try the next step
-static int constexpr shoulder_deadband = 10;
-static int constexpr elbow_deadband = 10;
+static int constexpr shoulder_deadband = 15;
+static int constexpr elbow_deadband = 15;
 
 bool ArmPose::isCloseEnoughTo(const ArmPose &other) const {
     return std::abs(shoulder_yaw - other.shoulder_yaw) < shoulder_deadband &&
@@ -75,7 +75,7 @@ void ArmExpert::finish_good() {
     if (for_state == ArmState::Unfolding) {
         levers.goto_state(State::AutoCamera);
     } else {
-        levers.goto_state(State::ManualControl);
+        levers.goto_state(State::Emergency);
     }
 }
 

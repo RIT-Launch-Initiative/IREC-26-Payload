@@ -111,6 +111,10 @@ std::optional<uint32_t> ImageHandlerNode::nextImageIdForDir(const std::string &d
     namespace fs = std::filesystem;
     uint32_t max_id = 0;
     bool any_seen = false;
+    
+    RCLCPP_INFO(get_logger(), "Creating/checking %s for next image id", dir.c_str());
+    fs::create_directories(fs::path{dir});
+
     if (!(fs::exists(dir) && fs::is_directory(dir))) {
         return std::nullopt;
     }

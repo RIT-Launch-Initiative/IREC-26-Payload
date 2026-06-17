@@ -27,8 +27,6 @@ Vec3_16 decode_vec3_16(uint8_t *buf) {
     };
 }
 
-
-
 bool CheckStatusBit(StatusWord word, StatusBit bit_index) { return (word >> bit_index) & 1; }
 
 enum class SpiCommand : uint8_t {
@@ -67,8 +65,12 @@ enum class SpiCommand : uint8_t {
 
 };
 
-bool CrashoutSTM::open(std::string spidev, uint32_t speed_hz_) {
+bool CrashoutSTM::open(std::string spidev, uint32_t speed_hz_, std::function<bool(bool)> set_reset) {
+    set_reset_gpio = set_reset;
     speed_hz = speed_hz_;
+
+    hard_reset();
+
     spi_fd = ::open(spidev.c_str(), O_RDWR | O_CLOEXEC);
     if (spi_fd < 0) {
         return false;
@@ -213,7 +215,15 @@ void CrashoutSTM::reset() {
 }
 
 void CrashoutSTM::hard_reset() {
-    // std::this_thread::sleep_for(hard_reset_time);
+    // reset
+    set_reset_gpio(false);
+    // give it a sec
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    // enable
+    set_reset_gpio(true);
+    // wait to open
+    std::this_thread::sleep_for(std::chrono::milliseconds(250));
 }
 
 Status status_from_transfer(const Transfer &resp) {
@@ -278,7 +288,6 @@ std::optional<Vec3_16> CrashoutSTM::getLink2IMU() {
 
     return decode_vec3_16(response->data() + 2);
 }
-
 
 void CrashoutSTM::recover() {
     // clear any waiting response by getting and discarding it

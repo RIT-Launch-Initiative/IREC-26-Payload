@@ -6,3 +6,5 @@ stm_bridge_node:
     spi_freq_hz: 4000000
 
     status_poll_hz: 100.0
+
+    stm_reset_pin: 26

@@ -1,6 +1,6 @@
 /**:
   ros__parameters:
-    flight_time_s: 300.0
+    flight_time_s: 400.0
 
     pad_heartbeat_s: 20.0 # 1 per 20 seconds
     primary_heartbeat_s: 20.0

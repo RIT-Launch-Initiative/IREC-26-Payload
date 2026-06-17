@@ -118,8 +118,8 @@ enum TelemetryType {
 
 // From GS to Payload
 enum Command {
-    Command_ForceManual, // stop anything on a timer and listen for radio message
-    Command_ForceFlight, // in case boost detect failed
+    Command_ForceManual,  // stop anything on a timer and listen for radio message
+    Command_ForceFlight,  // in case boost detect failed
     Command_ExpectFlight, // start going faster and sending me more packets for status of flight bc you're about to take
                           // off. maybe also turn on cameras
 
@@ -149,6 +149,7 @@ enum Command {
 
     Command_NewFlightDanger, // DANGER delete the 'we launched' flag and reset
     Command_Restart,
+    Command_Reboot,
     // counters and delete directories for images and
     // shell commands. Restarts all programs, may blink
     // offline for a sec

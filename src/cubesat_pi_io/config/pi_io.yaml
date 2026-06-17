@@ -21,4 +21,4 @@ pi_io_node:
     buzzer:
       period_ms: 100
       gpio_chip: "gpiochip0"
-      gpio_pin: 17 # 17
+      gpio_pin: 12 # 17

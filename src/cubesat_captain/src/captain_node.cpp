@@ -11,12 +11,13 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
-#include <sys/wait.h>
 #include <sys/types.h>
-
-
+#include <sys/wait.h>
 
 namespace cubesat_captain {
+
+std::optional<State> loadFlightState(std::string dir);
+
 
 CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     : rclcpp::Node("captain_node", options), status{},
@@ -42,8 +43,6 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     gpio_chip_name = declare_parameter<std::string>("gpio_chip", "gpiochip0");
     runcam_pin = declare_parameter<int64_t>("runcam_pin", 1);
     restart_command = declare_parameter<std::string>("restart_command", "sudo systemctl restart atlas-flight.service");
-
-
 
     load_startup_parameters();
     primary_heartbeat_type.telem_id = cubesat_msgs::msg::TelemetryType::FLIGHT_HEARTBEAT;
@@ -134,6 +133,11 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     // enter initial state
     State initial_state = State::Pad;
 
+    auto maybe_saved_state = loadFlightState(flight_dir);
+    if (maybe_saved_state){
+        initial_state = *maybe_saved_state;
+    }
+
     cubesat_msgs::msg::FlightState msg;
     msg.stamp = now();
     msg.state = (uint8_t)initial_state;
@@ -194,6 +198,33 @@ void CaptainNode::load_startup_parameters() {
         declare_parameter<double>("danger_battery_threshold_v", 10.5);
 }
 
+void saveFlightState(std::string dir, State state) {
+    std::ofstream outFile(dir + "/last_state", std::ios::binary);
+
+    // Check if the file opened successfully if (!outFile) { std::cerr << "Error opening file!" << std::endl; }
+    char state_byte = (char)state;
+    outFile.write(&state_byte, sizeof(state_byte));
+
+    outFile.close();
+}
+
+std::optional<State> loadFlightState(std::string dir) {
+    std::ifstream inFile(dir + "/last_state");
+    if (!inFile) {
+        std::cerr << "Error opening state !" << std::endl;
+        return std::nullopt;
+    }
+    inFile.seekg(0, inFile.end);
+    int len = inFile.tellg();
+    inFile.seekg(0, inFile.beg);
+    if (len != 1){
+        return std::nullopt;
+    }
+    char state_byte = 0;
+    inFile.read(&state_byte, sizeof(state_byte));
+    return (State)state_byte;
+}
+
 void CaptainNode::change_internal_state(State state) {
     State old_state = status.active_state();
     Expert *old_expert = expert_for_state(old_state);
@@ -207,6 +238,24 @@ void CaptainNode::change_internal_state(State state) {
     msg.state = (uint8_t)state;
     status.update_flight_state(msg);
     state_pub->publish(msg);
+
+
+    if (state == State::Emergency){
+        std::vector<uint16_t> blocks = {};
+        for (int i = 0; i < 60; i++){
+            blocks.push_back(i);
+        }
+        emit_imagedata(0, blocks);
+        std::thread([this](){
+            std::this_thread::sleep_for(std::chrono::milliseconds(60*1000));
+            emit_imagedata(1, blocks);
+            std::this_thread::sleep_for(std::chrono::milliseconds(60*1000));
+            emit_imagedata(2, blocks);
+
+        })
+    }
+
+    saveFlightState(flight_dir, state);
 
     Expert *expert = expert_for_state(state);
     if (expert != nullptr) {

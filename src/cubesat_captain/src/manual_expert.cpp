@@ -32,7 +32,10 @@ cubesat_msgs::action::ExtendArm::Goal tx_pose(int8_t current_yaw) {
     return goal;
 }
 
-void ManualExpert::enter_state() { levers.set_primary_heartbeat(cubesat_msgs::msg::TelemetryType::LANDED_HEARTBEAT); }
+void ManualExpert::enter_state() {
+    levers.set_primary_heartbeat(cubesat_msgs::msg::TelemetryType::LANDED_HEARTBEAT);
+    levers.set_runcam_power(false);
+}
 
 void ManualExpert::send_arm_to_target_and_come_back(const cubesat_msgs::action::ExtendArm::Goal &goal) {
     using namespace std::placeholders;
@@ -87,6 +90,7 @@ void ManualExpert::arm_result_cb(const GoalHandleExtendArm::WrappedResult &) {
     RCLCPP_INFO(logger, "Manual Arm Result CB");
     RCLCPP_INFO(logger, "Arm Post Finish");
     if (take_photo_with_arm_movement) {
+        levers.take_picture(0, 1280, 0, 800, 640, 2);
     }
 
     if (return_to_tx_point_after_arm_movement) {

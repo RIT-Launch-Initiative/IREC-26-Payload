@@ -1,20 +1,22 @@
 #pragma once
 
 #include "crashout_stm.hpp"
-#include "stm_data.hpp"
 #include "cubesat_msgs/srv/hold_shut.hpp"
 #include "cubesat_msgs/srv/jog_motor.hpp"
 #include "cubesat_msgs/srv/zero_arm.hpp"
+#include "stm_data.hpp"
 
-#include <cubesat_msgs/action/flip_servo_action.hpp>
 #include <cubesat_msgs/action/extend_arm.hpp>
+#include <cubesat_msgs/action/flip_servo_action.hpp>
 
+#include <cubesat_msgs/msg/accel_sample.hpp>
 #include <cubesat_msgs/msg/arm_state.hpp>
 #include <cubesat_msgs/msg/arm_status.hpp>
-#include <cubesat_msgs/msg/accel_sample.hpp>
 
 #include "rclcpp_action/rclcpp_action.hpp"
 #include <rclcpp/rclcpp.hpp>
+
+#include <gpiod.h>
 
 namespace cubesat_stm_bridge {
 
@@ -25,7 +27,6 @@ class StmBridgeNode : public rclcpp::Node {
 
     using ExtendArm = cubesat_msgs::action::ExtendArm;
     using GoalHandleExtendArm = rclcpp_action::ServerGoalHandle<ExtendArm>;
-
 
     enum class BridgeMode {
         Idle,
@@ -42,6 +43,8 @@ class StmBridgeNode : public rclcpp::Node {
     rclcpp::TimerBase::SharedPtr status_timer;
     rclcpp::Publisher<cubesat_msgs::msg::ArmStatus>::SharedPtr arm_pub;
 
+    void saveArmLocation(std::string flight_dir, StmBridge::ArmPose &pose);
+    std::optional<StmBridge::ArmPose> loadArmLocation(std::string flight_dir);
 
     void attemptRestart();
     void onStatusTimer();
@@ -55,7 +58,7 @@ class StmBridgeNode : public rclcpp::Node {
                   std::shared_ptr<cubesat_msgs::srv::JogMotor::Response> response);
 
     void zeroArm(const std::shared_ptr<cubesat_msgs::srv::ZeroArm::Request> request,
-                  std::shared_ptr<cubesat_msgs::srv::ZeroArm::Response> response);
+                 std::shared_ptr<cubesat_msgs::srv::ZeroArm::Response> response);
 
     void FillArmStatusFlags(StmBridge::StatusWord word, cubesat_msgs::msg::ArmStatus &status);
 
@@ -64,23 +67,25 @@ class StmBridgeNode : public rclcpp::Node {
     rclcpp_action::CancelResponse handle_flip_cancel(const std::shared_ptr<GoalHandleFlipServo> goal_handle);
     void handle_flip_accepted(const std::shared_ptr<GoalHandleFlipServo> goal_handle);
 
-
-
     rclcpp_action::GoalResponse handle_arm_goal(const rclcpp_action::GoalUUID &uuid,
-                                                 std::shared_ptr<const ExtendArm::Goal> goal);
+                                                std::shared_ptr<const ExtendArm::Goal> goal);
     rclcpp_action::CancelResponse handle_arm_cancel(const std::shared_ptr<GoalHandleExtendArm> goal_handle);
 
     void handle_arm_accepted(const std::shared_ptr<GoalHandleExtendArm> goal_handle);
 
-
-
   private:
+    bool openResetLine(std::string gpiochip, int pin);
+    bool setResetLine(bool value);
+
     rclcpp::Subscription<cubesat_msgs::msg::AccelSample>::SharedPtr imu_sub;
     void handle_imu(const cubesat_msgs::msg::AccelSample::SharedPtr sample);
     StmBridge::Vec3_16 normed_v16(const cubesat_msgs::msg::AccelSample &sample);
 
     BridgeMode active_mode{BridgeMode::Idle};
 
+    std::string flight_dir;
+    gpiod_chip *gpio_chip{nullptr};
+    gpiod_line *reset_gpio{nullptr};
 
     size_t counter = 0;
 

@@ -1,6 +1,7 @@
 #include "cubesat_stm_bridge/stm_bridge_node.hpp"
 
 #include <chrono>
+#include <fstream>
 #include <string>
 
 namespace cubesat_stm_bridge {
@@ -17,10 +18,51 @@ std::chrono::nanoseconds periodFromHz(double hz) {
 } // namespace
 
 static constexpr size_t imu_every = 50;
+static constexpr size_t save_every = 10;
+
+bool request_output(gpiod_chip *chip, int line_number, const char *consumer, int initial_value, gpiod_line *&out_line) {
+    if (line_number < 0) {
+        out_line = nullptr;
+        return true;
+    }
+
+    out_line = gpiod_chip_get_line(chip, line_number);
+    if (out_line == nullptr) {
+        return false;
+    }
+    if (gpiod_line_request_output(out_line, consumer, initial_value) != 0) {
+        gpiod_line_release(out_line);
+        out_line = nullptr;
+        return false;
+    }
+    return true;
+}
+
+bool StmBridgeNode::setResetLine(bool on) {
+    if (reset_gpio == nullptr) {
+        RCLCPP_ERROR(get_logger(), "Bad gpio for set reset line this is really bad and freaked up");
+        return false;
+    }
+    gpiod_line_set_value(reset_gpio, on);
+    return true;
+}
+
+bool StmBridgeNode::openResetLine(std::string gpio_chip_name, int reset_pin) {
+    gpio_chip = gpiod_chip_open_by_name(gpio_chip_name.c_str());
+    if (gpio_chip == nullptr) {
+        return false;
+    }
+
+    if (!request_output(gpio_chip, reset_pin, "STMRST", 0, reset_gpio)) {
+        return false;
+    }
+    return true;
+}
 
 StmBridgeNode::StmBridgeNode(const rclcpp::NodeOptions &options) : rclcpp::Node("stm_bridge_node", options) {
     // Shared (consumed by other nodes declared here so launch can pass it freely).
-    declare_parameter<std::string>("flight_dir", "");
+    flight_dir = declare_parameter<std::string>("flight_dir", "~/unconfigured_flight_dir");
+    int reset_pin = declare_parameter<int>("stm_reset_pin", 26);
 
     RCLCPP_INFO(get_logger(), "Stm Bridge Node started");
 
@@ -31,7 +73,10 @@ StmBridgeNode::StmBridgeNode(const rclcpp::NodeOptions &options) : rclcpp::Node(
 
     arm_pub = create_publisher<cubesat_msgs::msg::ArmStatus>("stm/arm_status", 10);
 
-    if (!crashout.open(spi_device, spi_bus_hz)) {
+
+    openResetLine("gpiochip0", reset_pin);
+
+    if (!crashout.open(spi_device, spi_bus_hz, [this](bool value) { return this->setResetLine(value); })) {
         RCLCPP_ERROR(get_logger(), "Crashout STM creation failed: spidev='%s' spi_hz=%ld", spi_device.c_str(),
                      spi_bus_hz);
     }
@@ -60,6 +105,11 @@ StmBridgeNode::StmBridgeNode(const rclcpp::NodeOptions &options) : rclcpp::Node(
         "/stm/zero_arm", std::bind(&StmBridgeNode::zeroArm, this, std::placeholders::_1, std::placeholders::_2));
 
     status_timer = create_wall_timer(periodFromHz(status_hz), [this] { onStatusTimer(); });
+
+    // auto maybe_old_pose = loadArmLocation(flight_dir);
+    // if (maybe_old_pose) {
+        // crashout.setPoseEst(*maybe_old_pose);
+    // }
 }
 
 void StmBridgeNode::FillArmStatusFlags(StmBridge::StatusWord word, cubesat_msgs::msg::ArmStatus &status) {
@@ -79,12 +129,13 @@ void StmBridgeNode::FillArmStatusFlags(StmBridge::StatusWord word, cubesat_msgs:
     status.encoders_not_updating = CheckStatusBit(word, StatusBitEncodersNotUpdating);
 }
 
-void StmBridgeNode::attemptRestart(){
+void StmBridgeNode::attemptRestart() {
+    const cubesat_msgs::msg::ArmStatus &stat = last_status;
     // save last arm pos
-    // hard reset 
-    // wait a bit
-    // recover
-    // 
+    // hard reset
+    crashout.hard_reset();
+    crashout.setPoseEst({(int8_t)stat.shoulder_yaw_deg, (int8_t)stat.shoulder_pitch_deg, (int8_t)stat.elbow_angle_deg,
+                         (int8_t)stat.wrist_angle_deg});
 }
 
 void StmBridgeNode::onStatusTimer() {
@@ -94,10 +145,12 @@ void StmBridgeNode::onStatusTimer() {
     if (!maybe_status.has_value()) {
         RCLCPP_WARN(get_logger(), "Failed to get status from STM");
         num_fails++;
-    } else if (!CheckStatusBit(maybe_status->status_word, StatusBit_Booted)){
+    } else if (!CheckStatusBit(maybe_status->status_word, StatusBit_Booted)) {
         num_fails++;
+    } else {
+        num_fails = 0;
     }
-    if (num_fails > 10){
+    if (num_fails > 10) {
         attemptRestart();
         return;
     }
@@ -132,6 +185,9 @@ void StmBridgeNode::onStatusTimer() {
             last_l2_imu.az = value->z;
         }
     }
+    if (counter % save_every == 0) {
+        saveArmLocation(flight_dir, arm_status.pose);
+    }
 
     switch (active_mode) {
     case BridgeMode::Idle:
@@ -154,6 +210,46 @@ void StmBridgeNode::onStatusTimer() {
     default:
         RCLCPP_WARN(get_logger(), "Unimplemented mode tick");
     }
+}
+
+void StmBridgeNode::saveArmLocation(std::string flight_dir, StmBridge::ArmPose &pose) {
+    std::ofstream outFile(flight_dir + "/last_arm", std::ios::binary);
+
+    // Check if the file opened successfully if (!outFile) { std::cerr << "Error opening file!" << std::endl; }
+    char bytes[4] = {0};
+
+    bytes[0] = *(uint8_t *)&pose.shoulder_yaw;
+    bytes[1] = *(uint8_t *)&pose.shoulder_pitch;
+    bytes[2] = *(uint8_t *)&pose.elbow_pitch;
+    bytes[3] = *(uint8_t *)&pose.wrist_pitch;
+
+    outFile.write(&bytes[0], sizeof(bytes));
+
+    outFile.close();
+}
+
+std::optional<StmBridge::ArmPose> StmBridgeNode::loadArmLocation(std::string flight_dir) {
+    std::ifstream inFile(flight_dir + "/last_arm");
+    if (!inFile) {
+        std::cerr << "Error opening arm file !" << std::endl;
+        return std::nullopt;
+    }
+    inFile.seekg(0, inFile.end);
+    int len = inFile.tellg();
+    inFile.seekg(0, inFile.beg);
+    if (len != 4) {
+        return std::nullopt;
+    }
+    char bytes[4] = {0};
+    inFile.read(&bytes[0], sizeof(bytes));
+    StmBridge::ArmPose pose;
+
+    pose.shoulder_yaw = *(int8_t *)&bytes[0];
+    pose.shoulder_pitch = *(int8_t *)&bytes[1];
+    pose.elbow_pitch = *(int8_t *)&bytes[2];
+    pose.wrist_pitch = *(int8_t *)&bytes[3];
+
+    return pose;
 }
 
 void StmBridgeNode::tickServo(StmBridge::FlipServo servoid) {

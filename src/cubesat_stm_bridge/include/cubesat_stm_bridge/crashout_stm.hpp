@@ -5,6 +5,7 @@
 #include <exception>
 #include <optional>
 #include <string>
+#include <functional>
 
 namespace StmBridge {
 
@@ -16,10 +17,9 @@ class SpiException : std::exception {};
 class CrashoutSTM {
   public:
     CrashoutSTM() = default;
-    CrashoutSTM(std::string spidev, uint32_t speed_hz);
     ~CrashoutSTM();
 
-    bool open(std::string spidev, uint32_t speed_hz);
+    bool open(std::string spidev, uint32_t speed_hz, std::function<bool(bool)> set_reset);
 
     void recover();
     std::optional<Status> getStatus();
@@ -51,6 +51,8 @@ class CrashoutSTM {
 
     int spi_fd = -1;
     uint32_t speed_hz = 4000000;
+    int num_fails = 0;
+    std::function<bool(bool)> set_reset_gpio;
 };
 
 } // namespace StmBridge
