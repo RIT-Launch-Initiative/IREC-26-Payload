@@ -9,6 +9,8 @@
 #include "cubesat_comms/packets_g2p.h"
 #include "cubesat_comms/packets_p2g.h"
 
+static bool allowed_to_tx = true;
+
 namespace cubesat_radio {
 SpreadingFactor psf_to_lsf(uint8_t sf) {
     switch (sf) {
@@ -171,9 +173,13 @@ std::optional<G2PLinkHeader> header_of_packet(const std::vector<uint8_t> &pack) 
 RadioNode::RadioNode(const rclcpp::NodeOptions &options) : rclcpp::Node("radio_node", options) {
     const auto hardware = loadHardwareConfig();
     RadioProfile profile = loadParameterProfile();
-    // if (!loadProfileFromFile(flight_dir)) {
-    // serializeProfile(flight_dir + "/radio_profile");
-    // }
+
+    bool muted = declare_parameter<bool>("muted", false);
+    if (muted) {
+        allowed_to_tx = false;
+    } else {
+        allowed_to_tx = true;
+    }
 
     statePub = create_publisher<cubesat_msgs::msg::RadioState>("radio/state", 10);
 
@@ -206,6 +212,9 @@ RadioNode::RadioNode(const rclcpp::NodeOptions &options) : rclcpp::Node("radio_n
         return;
     }
 
+    if (!allowed_to_tx) {
+        RCLCPP_INFO(get_logger(), "RADIO IS MUTED IS MUTED IS MUTED");
+    }
     RCLCPP_INFO(get_logger(),
                 "Radio initialized: freq=%u Hz bw=%u Hz sf=%u cr=4/%u tx=%d dBm "
                 "spi=%s reset=%d busy=%d dio1=%d",
@@ -304,6 +313,11 @@ void RadioNode::RadioStateMachine::linkTestChanceExpired() {
 }
 
 bool RadioNode::RadioStateMachine::submitPacketToSend(std::vector<uint8_t> packet) {
+    if (!allowed_to_tx) {
+        RCLCPP_WARN(get_logger(), "Not queuing packet bc muted");
+        return false;
+    }
+
     RCLCPP_INFO(get_logger(), "Submitting packet of length %ld to queue", packet.size());
     if (packet.empty()) {
         RCLCPP_WARN(get_logger(), "Not submitting empty packet");

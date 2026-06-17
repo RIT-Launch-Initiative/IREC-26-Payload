@@ -50,6 +50,13 @@ void CaptainNode::handle_packet(const cubesat_msgs::msg::RadioPacket::SharedPtr 
     }
 
     switch (cmd_and_data.command) {
+    case Command_Restart:
+        restart_system();
+        break;
+    case Command_NewFlightDanger:
+        flag_for_new_flight_dir();
+        restart_system();
+        break;
     case Command_ForceManual:
         change_internal_state(State::ManualControl);
         break;

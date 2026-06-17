@@ -39,6 +39,6 @@ class ManualExpert : public Expert {
 
   private:
     bool take_photo_with_arm_movement = true;
-    bool return_to_origin_point_after_arm_movement = true;
+    bool return_to_tx_point_after_arm_movement = true;
 };
 } // namespace cubesat_captain

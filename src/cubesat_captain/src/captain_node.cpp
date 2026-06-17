@@ -11,6 +11,10 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <sys/wait.h>
+#include <sys/types.h>
+
+
 
 namespace cubesat_captain {
 
@@ -26,7 +30,10 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
                     uint8_t quality) { this->ask_for_image(left, right, top, bottom, output_width, quality); },
              [this]() { this->flight_timer->cancel(); },
              [this]() { this->flight_timer->reset(); },
-             [this](bool enabled) { this->setCamera(enabled); this->status.set_runcam(enabled); },
+             [this](bool enabled) {
+                 this->setCamera(enabled);
+                 this->status.set_runcam(enabled);
+             },
              [this](State state) { this->change_internal_state(state); },
              [this](cubesat_msgs::msg::TelemetryType::_telem_id_type typ) {
                  this->primary_heartbeat_type.telem_id = typ;
@@ -34,6 +41,9 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     flight_dir = declare_parameter<std::string>("flight_dir", "~/unconfigured_flight_dir");
     gpio_chip_name = declare_parameter<std::string>("gpio_chip", "gpiochip0");
     runcam_pin = declare_parameter<int64_t>("runcam_pin", 1);
+    restart_command = declare_parameter<std::string>("restart_command", "sudo systemctl restart atlas-flight.service");
+
+
 
     load_startup_parameters();
     primary_heartbeat_type.telem_id = cubesat_msgs::msg::TelemetryType::FLIGHT_HEARTBEAT;
@@ -177,7 +187,7 @@ void CaptainNode::load_startup_parameters() {
     status.current_parameters.pad_heartbeat_s = declare_parameter<double>("pad_heartbeat_s", 0.05);
     status.current_parameters.primary_heartbeat_s = declare_parameter<double>("primary_heartbeat_s", 0.2);
     status.current_parameters.secondary_heartbeat_s = declare_parameter<double>("secondary_heartbeat_s", 0.2);
-    status.current_parameters.boost_threshold_mps2 = declare_parameter<double>("boost_threshold_mps2", 7*9.8);
+    status.current_parameters.boost_threshold_mps2 = declare_parameter<double>("boost_threshold_mps2", 7 * 9.8);
 
     status.current_parameters.warn_battery_threshold_v = declare_parameter<double>("warn_battery_threshold_v", 10.75);
     status.current_parameters.danger_battery_threshold_v =
@@ -208,7 +218,28 @@ void CaptainNode::change_internal_state(State state) {
 void CaptainNode::flag_for_new_flight_dir() { std::ofstream(flight_dir + "/new_dir_please.flag").close(); }
 
 void CaptainNode::restart_system() {
-    RCLCPP_WARN(get_logger(), "Restarting self (except not actually bc not implemented)");
+    RCLCPP_WARN(get_logger(), "Restarting flight stack with: %s", restart_command.c_str());
+
+    // double-fork so the restart command is reparented to init and survives this
+    // process being killed by the restart itself; the parent never blocks
+    pid_t pid = fork();
+    if (pid < 0) {
+        RCLCPP_ERROR(get_logger(), "fork failed, cannot restart: %s", strerror(errno));
+        return;
+    }
+    if (pid == 0) {
+        // first child: detach and spawn the real command
+        setsid();
+        pid_t pid2 = fork();
+        if (pid2 == 0) {
+            execl("/bin/sh", "sh", "-c", restart_command.c_str(), (char *)nullptr);
+            _exit(127); // exec failed
+        }
+        _exit(pid2 < 0 ? 1 : 0);
+    }
+    // reap the first child so it doesn't zombie
+    int wstatus = 0;
+    waitpid(pid, &wstatus, 0);
 }
 
 void CaptainNode::handle_imu(const cubesat_msgs::msg::AccelSample::SharedPtr sample) {
@@ -337,7 +368,7 @@ bool CaptainNode::openCameraLine() {
 }
 
 bool CaptainNode::setCamera(bool on) {
-    if (camera_gpio == nullptr){
+    if (camera_gpio == nullptr) {
         RCLCPP_ERROR(get_logger(), "Bad gpio for set camera this is really bad and freaked up");
         return false;
     }

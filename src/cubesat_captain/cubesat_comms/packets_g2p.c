@@ -98,6 +98,7 @@ int pack_command_and_data(const struct CommandAndData *cmd_and_data, uint8_t *bu
     case Command_Panorama:
     case Command_NewFlightDanger:
     case Command_StopVideo:
+    case Command_Restart:
         return 1;
     case Command_Callsign:
         pack_callsign(&cmd_and_data->callsign, buf + 1);
@@ -164,6 +165,7 @@ enum UnpackResult unpack_command_and_data(const uint8_t *buf, int len, struct Co
     case Command_Panorama:
     case Command_NewFlightDanger:
     case Command_StopVideo:
+    case Command_Restart:
         return UnpackResult_AllGood; // no data with these messages
     case Command_StartVideo:
         if (data_len >= 1) {

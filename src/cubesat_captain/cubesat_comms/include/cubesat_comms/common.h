@@ -148,6 +148,7 @@ enum Command {
     Command_MoveServo,
 
     Command_NewFlightDanger, // DANGER delete the 'we launched' flag and reset
+    Command_Restart,
     // counters and delete directories for images and
     // shell commands. Restarts all programs, may blink
     // offline for a sec

@@ -23,8 +23,9 @@ def generate_launch_description():
         description="Absolute path to the active flight data directory",
     )
     flight_dir = LaunchConfiguration("flight_dir")
+    muted = LaunchConfiguration("muted")
 
-    shared = {"flight_dir": flight_dir}
+    shared = {"flight_dir": flight_dir, 'muted': muted}
 
     pi_io = Node(
         package="cubesat_pi_io",
