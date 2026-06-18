@@ -106,10 +106,10 @@ StmBridgeNode::StmBridgeNode(const rclcpp::NodeOptions &options) : rclcpp::Node(
 
     status_timer = create_wall_timer(periodFromHz(status_hz), [this] { onStatusTimer(); });
 
-    // auto maybe_old_pose = loadArmLocation(flight_dir);
-    // if (maybe_old_pose) {
-        // crashout.setPoseEst(*maybe_old_pose);
-    // }
+    auto maybe_old_pose = loadArmLocation(flight_dir);
+    if (maybe_old_pose) {
+        crashout.setPoseEst(*maybe_old_pose);
+    }
 }
 
 void StmBridgeNode::FillArmStatusFlags(StmBridge::StatusWord word, cubesat_msgs::msg::ArmStatus &status) {

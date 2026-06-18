@@ -18,7 +18,6 @@ namespace cubesat_captain {
 
 std::optional<State> loadFlightState(std::string dir);
 
-
 CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     : rclcpp::Node("captain_node", options), status{},
       levers{status,
@@ -134,7 +133,7 @@ CaptainNode::CaptainNode(const rclcpp::NodeOptions &options)
     State initial_state = State::Pad;
 
     auto maybe_saved_state = loadFlightState(flight_dir);
-    if (maybe_saved_state){
+    if (maybe_saved_state) {
         initial_state = *maybe_saved_state;
     }
 
@@ -217,7 +216,7 @@ std::optional<State> loadFlightState(std::string dir) {
     inFile.seekg(0, inFile.end);
     int len = inFile.tellg();
     inFile.seekg(0, inFile.beg);
-    if (len != 1){
+    if (len != 1) {
         return std::nullopt;
     }
     char state_byte = 0;
@@ -239,20 +238,23 @@ void CaptainNode::change_internal_state(State state) {
     status.update_flight_state(msg);
     state_pub->publish(msg);
 
-
-    if (state == State::Emergency){
+    if (state == State::Emergency) {
         std::vector<uint16_t> blocks = {};
-        for (int i = 0; i < 60; i++){
+        for (int i = 0; i < 60; i++) {
             blocks.push_back(i);
         }
         emit_imagedata(0, blocks);
-        std::thread([this](){
-            std::this_thread::sleep_for(std::chrono::milliseconds(60*1000));
-            emit_imagedata(1, blocks);
-            std::this_thread::sleep_for(std::chrono::milliseconds(60*1000));
-            emit_imagedata(2, blocks);
+        std::thread([this]() {
+            std::vector<uint16_t> blocks = {};
+            for (int i = 0; i < 60; i++) {
+                blocks.push_back(i);
+            }
 
-        })
+            std::this_thread::sleep_for(std::chrono::milliseconds(60 * 1000));
+            emit_imagedata(1, blocks);
+            std::this_thread::sleep_for(std::chrono::milliseconds(60 * 1000));
+            emit_imagedata(2, blocks);
+        }).detach();
     }
 
     saveFlightState(flight_dir, state);
